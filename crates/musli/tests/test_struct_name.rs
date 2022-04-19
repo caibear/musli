@@ -1,6 +1,6 @@
 use musli::{Decode, Encode};
 use musli_wire::test::Typed;
-use musli_wire::types::TypeTag;
+use musli_wire::types::{TypeKind, TypeTag};
 
 #[derive(Debug, PartialEq, Encode, Decode)]
 #[musli(default_field_tag = "name")]
@@ -34,11 +34,11 @@ fn struct_named_fields() {
     assert_eq!(
         unpacked,
         Unpacked {
-            field_count: Typed::new(TypeTag::PairSequence, 2),
-            field1_name: Typed::new(TypeTag::Prefixed, String::from("string")),
-            field1_value: Typed::new(TypeTag::Prefixed, String::from("foo")),
-            field2_name: Typed::new(TypeTag::Prefixed, String::from("number")),
-            field2_value: Typed::new(TypeTag::Continuation, 42),
+            field_count: Typed::new(TypeTag::new(TypeKind::PairSequence, 0), 2),
+            field1_name: Typed::new(TypeTag::new(TypeKind::Prefixed, 0), String::from("string")),
+            field1_value: Typed::new(TypeTag::new(TypeKind::Prefixed, 0), String::from("foo")),
+            field2_name: Typed::new(TypeTag::new(TypeKind::Prefixed, 0), String::from("number")),
+            field2_value: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 42),
         }
     );
 
@@ -71,11 +71,11 @@ fn struct_indexed_fields() {
     assert_eq!(
         unpacked,
         Unpacked {
-            field_count: Typed::new(TypeTag::PairSequence, 2),
-            field1_index: Typed::new(TypeTag::Continuation, 0),
-            field1_value: Typed::new(TypeTag::Prefixed, String::from("foo")),
-            field2_index: Typed::new(TypeTag::Continuation, 1),
-            field2_value: Typed::new(TypeTag::Continuation, 42),
+            field_count: Typed::new(TypeTag::new(TypeKind::PairSequence, 1), 2),
+            field1_index: Typed::new(TypeTag::new(TypeKind::Continuation, 1), 0),
+            field1_value: Typed::new(TypeTag::new(TypeKind::Prefixed, 1), String::from("foo")),
+            field2_index: Typed::new(TypeTag::new(TypeKind::Continuation, 1), 1),
+            field2_value: Typed::new(TypeTag::new(TypeKind::Continuation, 1), 42),
         }
     );
 

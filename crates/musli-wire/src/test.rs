@@ -48,7 +48,6 @@ where
 {
     let out = crate::to_vec(&expected).expect("failed to encode");
     let mut buf = &out[..];
-    dbg!(buf);
     let value: T = crate::decode(&mut buf).expect("failed to decode");
     assert!(buf.is_empty(), "deserialized buffer should be empty");
     assert_eq!(value, expected, "roundtrip does not match");

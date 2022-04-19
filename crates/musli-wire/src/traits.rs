@@ -1,4 +1,4 @@
-use crate::types::TypeTag;
+use crate::types::{TypeKind, TypeTag};
 
 /// Trait that encodes common behaviors of unsigned numbers.
 pub trait Typed {
@@ -7,15 +7,16 @@ pub trait Typed {
 }
 
 macro_rules! implement {
-    ($ty:ty, $type_flag:ident) => {
+    ($ty:ty, $type_flag:expr) => {
         impl Typed for $ty {
-            const TYPE_FLAG: TypeTag = TypeTag::$type_flag;
+            const TYPE_FLAG: TypeTag = $type_flag;
         }
     };
 }
 
-implement!(u16, Fixed16);
-implement!(u32, Fixed32);
-implement!(u64, Fixed64);
-implement!(u128, Fixed128);
-implement!(usize, Fixed32);
+implement!(u16, TypeTag::new(TypeKind::Fixed, 2));
+implement!(u32, TypeTag::new(TypeKind::Fixed, 4));
+implement!(u64, TypeTag::new(TypeKind::Fixed, 8));
+implement!(u128, TypeTag::new(TypeKind::Fixed, 16));
+// TODO: this needs to be easier to determine.
+implement!(usize, TypeTag::new(TypeKind::Fixed, 8));

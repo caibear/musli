@@ -1,5 +1,8 @@
 use musli::{Decode, Encode};
-use musli_wire::{test::Typed, types::TypeTag};
+use musli_wire::{
+    test::Typed,
+    types::{TypeKind, TypeTag},
+};
 
 #[derive(Debug, Clone, PartialEq, Encode, Decode)]
 struct StructWithNumbers {
@@ -25,15 +28,15 @@ fn test_signed_unpacked() {
     assert_eq! {
         unpacked,
         Unpacked {
-            count: Typed::new(TypeTag::PairSequence, 4),
-            a_tag: Typed::new(TypeTag::Continuation, 0),
-            a: Typed::new(TypeTag::Continuation, 1),
-            b_tag: Typed::new(TypeTag::Continuation, 1),
-            b: Typed::new(TypeTag::Continuation, 2),
-            c_tag: Typed::new(TypeTag::Continuation, 2),
-            c: Typed::new(TypeTag::Continuation, 5),
-            d_tag: Typed::new(TypeTag::Continuation, 3),
-            d: Typed::new(TypeTag::Continuation, 6),
+            count: Typed::new(TypeTag::new(TypeKind::PairSequence, 0), 4),
+            a_tag: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 0),
+            a: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 1),
+            b_tag: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 1),
+            b: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 2),
+            c_tag: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 2),
+            c: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 5),
+            d_tag: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 3),
+            d: Typed::new(TypeTag::new(TypeKind::Continuation, 0), 6),
         }
     };
 
