@@ -124,6 +124,26 @@ where
             })),
         }
     }
+
+    /// Decode the length of a prefix.
+    #[inline]
+    fn decode_prefix(&mut self) -> Result<usize, R::Error> {
+        let tag = Tag::from_byte(self.reader.read_byte()?);
+
+        if tag.kind() != Kind::Prefix {
+            return Err(R::Error::collect_from_display(Expected {
+                expected: Kind::Prefix,
+                actual: tag,
+                pos: self.reader.pos(),
+            }));
+        }
+
+        Ok(if let Some(len) = tag.data() {
+            len as usize
+        } else {
+            L::decode_usize(&mut *self.reader)?
+        })
+    }
 }
 
 /// A length-prefixed decode wrapper.
@@ -162,27 +182,15 @@ where
     }
 
     #[inline]
-    fn decode_pack(self) -> Result<Self::Pack, Self::Error> {
+    fn decode_pack(mut self) -> Result<Self::Pack, Self::Error> {
+        // TODO: don't ignore prefix.
+        let _ = self.decode_prefix()?;
         Ok(self)
     }
 
     #[inline]
-    fn decode_array<const N: usize>(self) -> Result<[u8; N], Self::Error> {
-        let tag = Tag::from_byte(self.reader.read_byte()?);
-
-        if tag.kind() != Kind::Prefix {
-            return Err(Self::Error::collect_from_display(Expected {
-                expected: Kind::Prefix,
-                actual: tag,
-                pos: self.reader.pos(),
-            }));
-        }
-
-        let len = if let Some(len) = tag.data() {
-            len as usize
-        } else {
-            L::decode_usize(&mut *self.reader)?
-        };
+    fn decode_array<const N: usize>(mut self) -> Result<[u8; N], Self::Error> {
+        let len = self.decode_prefix()?;
 
         if len != N {
             return Err(Self::Error::collect_from_display(BadLength {
