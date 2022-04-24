@@ -66,7 +66,7 @@ where
     #[inline]
     fn decode_unit(mut self) -> Result<(), Self::Error> {
         let pos = self.reader.pos();
-        let count = L::decode_usize(&mut self.reader)?;
+        let count = L::decode_usize(self.reader.deref_positioned_reader_mut())?;
 
         if count != 0 {
             return Err(Self::Error::collect_from_display(ExpectedEmptySequence {
@@ -93,7 +93,7 @@ where
     where
         V: ReferenceVisitor<'de, Target = [u8], Error = Self::Error>,
     {
-        let len = L::decode_usize(&mut self.reader)?;
+        let len = L::decode_usize(self.reader.deref_positioned_reader_mut())?;
         let bytes = self.reader.read_bytes(len)?;
         visitor.visit_ref(bytes)
     }
@@ -283,11 +283,11 @@ where
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
+    type Decoder<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
-        Ok(StorageDecoder::new(&mut self.reader))
+        Ok(StorageDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 
     #[inline]
@@ -316,7 +316,7 @@ where
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type Next<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
+    type Next<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn size_hint(&self) -> Option<usize> {
@@ -330,7 +330,7 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(StorageDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(StorageDecoder::new(self.decoder.reader.deref_positioned_reader_mut())))
     }
 }
 
@@ -342,7 +342,7 @@ where
 {
     type Error = R::Error;
 
-    type Entry<'this> = StorageDecoder<&'this mut R, I, L>
+    type Entry<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L>
     where
         Self: 'this;
 
@@ -358,7 +358,7 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(StorageDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(StorageDecoder::new(self.decoder.reader.deref_positioned_reader_mut())))
     }
 }
 
@@ -369,17 +369,17 @@ where
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type Key<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
-    type Value<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
+    type Key<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
+    type Value<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn decode_key(&mut self) -> Result<Self::Key<'_>, Self::Error> {
-        Ok(StorageDecoder::new(&mut self.reader))
+        Ok(StorageDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 
     #[inline]
     fn decode_value(&mut self) -> Result<Self::Value<'_>, Self::Error> {
-        Ok(StorageDecoder::new(&mut self.reader))
+        Ok(StorageDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 }
 
@@ -391,7 +391,7 @@ where
 {
     type Error = R::Error;
 
-    type Field<'this> = StorageDecoder<&'this mut R, I, L>
+    type Field<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L>
     where
         Self: 'this;
 
@@ -407,7 +407,7 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(StorageDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(StorageDecoder::new(self.decoder.reader.deref_positioned_reader_mut())))
     }
 }
 
@@ -418,12 +418,12 @@ where
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type First<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
+    type First<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
     type Second = StorageDecoder<R, I, L>;
 
     #[inline]
     fn decode_first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(StorageDecoder::new(&mut self.reader))
+        Ok(StorageDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 
     #[inline]

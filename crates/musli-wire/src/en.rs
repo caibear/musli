@@ -95,7 +95,7 @@ where
 
     #[inline]
     fn encode_bytes(mut self, bytes: &[u8]) -> Result<(), Self::Error> {
-        encode_prefix::<W, L>(&mut self.writer, bytes.len())?;
+        encode_prefix::<_, L>(self.writer.deref_writer_mut(), bytes.len())?;
         self.writer.write_bytes(bytes)?;
         Ok(())
     }
@@ -108,7 +108,7 @@ where
         self.writer.write_byte(tag.byte())?;
 
         if !embedded {
-            L::encode_usize(&mut self.writer, len)?;
+            L::encode_usize(self.writer.deref_writer_mut(), len)?;
         }
 
         for bytes in vectors {
@@ -125,12 +125,12 @@ where
 
     #[inline]
     fn encode_usize(mut self, value: usize) -> Result<(), Self::Error> {
-        L::encode_typed_usize(&mut self.writer, value)
+        L::encode_typed_usize(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_isize(mut self, value: isize) -> Result<(), Self::Error> {
-        L::encode_typed_usize(&mut self.writer, value as usize)
+        L::encode_typed_usize(self.writer.deref_writer_mut(), value as usize)
     }
 
     #[inline]
@@ -158,22 +158,22 @@ where
 
     #[inline]
     fn encode_u16(mut self, value: u16) -> Result<(), Self::Error> {
-        I::encode_typed_unsigned(&mut self.writer, value)
+        I::encode_typed_unsigned(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_u32(mut self, value: u32) -> Result<(), Self::Error> {
-        I::encode_typed_unsigned(&mut self.writer, value)
+        I::encode_typed_unsigned(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_u64(mut self, value: u64) -> Result<(), Self::Error> {
-        I::encode_typed_unsigned(&mut self.writer, value)
+        I::encode_typed_unsigned(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_u128(mut self, value: u128) -> Result<(), Self::Error> {
-        I::encode_typed_unsigned(&mut self.writer, value)
+        I::encode_typed_unsigned(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
@@ -183,22 +183,22 @@ where
 
     #[inline]
     fn encode_i16(mut self, value: i16) -> Result<(), Self::Error> {
-        I::encode_typed_signed(&mut self.writer, value)
+        I::encode_typed_signed(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_i32(mut self, value: i32) -> Result<(), Self::Error> {
-        I::encode_typed_signed(&mut self.writer, value)
+        I::encode_typed_signed(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_i64(mut self, value: i64) -> Result<(), Self::Error> {
-        I::encode_typed_signed(&mut self.writer, value)
+        I::encode_typed_signed(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
     fn encode_i128(mut self, value: i128) -> Result<(), Self::Error> {
-        I::encode_typed_signed(&mut self.writer, value)
+        I::encode_typed_signed(self.writer.deref_writer_mut(), value)
     }
 
     #[inline]
@@ -229,7 +229,7 @@ where
         self.writer.write_byte(tag.byte())?;
 
         if !embedded {
-            L::encode_usize(&mut self.writer, len)?;
+            L::encode_usize(self.writer.deref_writer_mut(), len)?;
         }
 
         Ok(self)
@@ -244,7 +244,7 @@ where
         self.writer.write_byte(tag.byte())?;
 
         if !embedded {
-            L::encode_usize(&mut self.writer, len)?;
+            L::encode_usize(self.writer.deref_writer_mut(), len)?;
         }
 
         Ok(self)
@@ -259,7 +259,7 @@ where
         self.writer.write_byte(tag.byte())?;
 
         if !embedded {
-            L::encode_usize(&mut self.writer, len)?;
+            L::encode_usize(self.writer.deref_writer_mut(), len)?;
         }
 
         Ok(self)
@@ -274,7 +274,7 @@ where
         self.writer.write_byte(tag.byte())?;
 
         if !embedded {
-            L::encode_usize(&mut self.writer, len)?;
+            L::encode_usize(self.writer.deref_writer_mut(), len)?;
         }
 
         Ok(self)
@@ -309,7 +309,7 @@ where
 
     #[inline]
     fn finish(mut self) -> Result<(), Self::Error> {
-        encode_prefix::<W, L>(&mut self.writer, self.pack_buf.len())?;
+        encode_prefix::<_, L>(self.writer.deref_writer_mut(), self.pack_buf.len())?;
         self.writer.write_bytes(self.pack_buf.as_bytes())?;
         Ok(())
     }
@@ -322,11 +322,11 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = W::Error;
-    type Next<'this> = WireEncoder<&'this mut W, I, L, P> where Self: 'this;
+    type Next<'this> = WireEncoder<W::WriterTarget<'this>, I, L, P> where Self: 'this;
 
     #[inline]
     fn encode_next(&mut self) -> Result<Self::Next<'_>, Self::Error> {
-        Ok(WireEncoder::new(&mut self.writer))
+        Ok(WireEncoder::new(self.writer.deref_writer_mut()))
     }
 
     #[inline]
@@ -342,17 +342,17 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = W::Error;
-    type First<'this> = WireEncoder<&'this mut W, I, L, P> where Self: 'this;
-    type Second<'this> = WireEncoder<&'this mut W, I, L, P> where Self: 'this;
+    type First<'this> = WireEncoder<W::WriterTarget<'this>, I, L, P> where Self: 'this;
+    type Second<'this> = WireEncoder<W::WriterTarget<'this>, I, L, P> where Self: 'this;
 
     #[inline]
     fn encode_first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(WireEncoder::new(&mut self.writer))
+        Ok(WireEncoder::new(self.writer.deref_writer_mut()))
     }
 
     #[inline]
     fn encode_second(&mut self) -> Result<Self::Second<'_>, Self::Error> {
-        Ok(WireEncoder::new(&mut self.writer))
+        Ok(WireEncoder::new(self.writer.deref_writer_mut()))
     }
 
     #[inline]
@@ -369,12 +369,12 @@ where
 {
     type Error = W::Error;
 
-    type VariantTag<'this> = WireEncoder<&'this mut W, I, L, P> where Self: 'this;
+    type VariantTag<'this> = WireEncoder<W::WriterTarget<'this>, I, L, P> where Self: 'this;
     type VariantValue = Self;
 
     #[inline]
     fn encode_variant_tag(&mut self) -> Result<Self::VariantTag<'_>, Self::Error> {
-        Ok(WireEncoder::new(&mut self.writer))
+        Ok(WireEncoder::new(self.writer.deref_writer_mut()))
     }
 
     #[inline]
@@ -393,7 +393,7 @@ impl fmt::Display for Overflow {
 
 /// Encode a length prefix.
 #[inline]
-fn encode_prefix<W, L>(writer: &mut W, len: usize) -> Result<(), W::Error>
+fn encode_prefix<W, L>(mut writer: W, len: usize) -> Result<(), W::Error>
 where
     W: Writer,
     L: TypedUsizeEncoding,

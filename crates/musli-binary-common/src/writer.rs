@@ -11,6 +11,14 @@ pub trait Writer {
     /// The error type raised by the writer.
     type Error: Error;
 
+    /// Helper when dereffing the writer.
+    type WriterTarget<'this>: Writer<Error = Self::Error>
+    where
+        Self: 'this;
+
+    /// Deref the writer to the given target.
+    fn deref_writer_mut(&mut self) -> Self::WriterTarget<'_>;
+
     /// Write bytes to the current writer.
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
 
@@ -32,20 +40,26 @@ where
     W: ?Sized + Writer,
 {
     type Error = W::Error;
+    type WriterTarget<'this> = W::WriterTarget<'this> where Self: 'this;
+
+    #[inline]
+    fn deref_writer_mut(&mut self) -> Self::WriterTarget<'_> {
+        (**self).deref_writer_mut()
+    }
 
     #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
-        (*self).write_bytes(bytes)
+        (**self).write_bytes(bytes)
     }
 
     #[inline]
     fn write_byte(&mut self, b: u8) -> Result<(), Self::Error> {
-        (*self).write_byte(b)
+        (**self).write_byte(b)
     }
 
     #[inline]
     fn write_array<const N: usize>(&mut self, array: [u8; N]) -> Result<(), Self::Error> {
-        (*self).write_array(array)
+        (**self).write_array(array)
     }
 }
 
@@ -86,6 +100,12 @@ impl std::error::Error for VecWriterError {}
 #[cfg(feature = "std")]
 impl Writer for Vec<u8> {
     type Error = VecWriterError;
+    type WriterTarget<'this> = &'this mut Vec<u8>;
+
+    #[inline]
+    fn deref_writer_mut(&mut self) -> Self::WriterTarget<'_> {
+        self
+    }
 
     #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {

@@ -100,6 +100,12 @@ where
     E: Error,
 {
     type Error = E;
+    type WriterTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_writer_mut(&mut self) -> Self::WriterTarget<'_> {
+        self
+    }
 
     #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {

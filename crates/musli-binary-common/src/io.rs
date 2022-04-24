@@ -13,6 +13,7 @@ pub struct Wrap<T> {
 ///
 /// [Reader]: crate::reader::Reader
 /// [Writer]: crate::writer::Writer
+#[inline]
 pub fn wrap<T>(inner: T) -> Wrap<T> {
     Wrap { inner }
 }
@@ -23,7 +24,14 @@ where
     W: std::io::Write,
 {
     type Error = std::io::Error;
+    type WriterTarget<'this> = &'this mut Self where Self: 'this;
 
+    #[inline]
+    fn deref_writer_mut(&mut self) -> Self::WriterTarget<'_> {
+        self
+    }
+
+    #[inline]
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
         self.inner.write_all(bytes)
     }

@@ -58,7 +58,7 @@ where
                 let len = if let Some(len) = tag.data() {
                     len as usize
                 } else {
-                    L::decode_usize(&mut self.reader)?
+                    L::decode_usize(self.reader.deref_reader_mut())?
                 };
 
                 self.reader.skip(len)?;
@@ -67,7 +67,7 @@ where
                 let len = if let Some(len) = tag.data() {
                     len as usize
                 } else {
-                    L::decode_usize(&mut self.reader)?
+                    L::decode_usize(self.reader.deref_reader_mut())?
                 };
 
                 for _ in 0..len {
@@ -76,7 +76,7 @@ where
             }
             Kind::Continuation => {
                 if tag.data().is_none() {
-                    let _ = c::decode::<_, u128>(&mut self.reader)?;
+                    let _ = c::decode::<_, u128>(self.reader.deref_reader_mut())?;
                 }
             }
         }
@@ -92,7 +92,7 @@ where
             Kind::Sequence => Ok(if let Some(len) = tag.data() {
                 len as usize
             } else {
-                L::decode_usize(&mut self.reader)?
+                L::decode_usize(self.reader.deref_reader_mut())?
             }),
             _ => Err(R::Error::collect_from_display(Expected {
                 expected: Kind::Sequence,
@@ -132,7 +132,7 @@ where
         Ok(if let Some(len) = tag.data() {
             len as usize
         } else {
-            L::decode_usize(&mut self.reader)?
+            L::decode_usize(self.reader.deref_reader_mut())?
         })
     }
 }
@@ -213,7 +213,7 @@ where
         let len = if let Some(len) = tag.data() {
             len as usize
         } else {
-            L::decode_usize(&mut self.reader)?
+            L::decode_usize(self.reader.deref_reader_mut())?
         };
 
         let bytes = self.reader.read_bytes(len)?;
@@ -440,11 +440,13 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = StorageDecoder<&'this mut R, I, L> where Self: 'this;
+    type Decoder<'this> = StorageDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
-        Ok(StorageDecoder::new(&mut self.reader))
+        Ok(StorageDecoder::new(
+            self.reader.deref_positioned_reader_mut(),
+        ))
     }
 
     #[inline]
@@ -472,7 +474,7 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Next<'this> = WireDecoder<&'this mut R, I, L> where Self: 'this;
+    type Next<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn size_hint(&self) -> Option<usize> {
@@ -486,7 +488,9 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(WireDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(WireDecoder::new(
+            self.decoder.reader.deref_positioned_reader_mut(),
+        )))
     }
 }
 
@@ -498,7 +502,7 @@ where
 {
     type Error = R::Error;
 
-    type Entry<'this> = WireDecoder<&'this mut R, I, L>
+    type Entry<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L>
     where
         Self: 'this;
 
@@ -514,7 +518,9 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(WireDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(WireDecoder::new(
+            self.decoder.reader.deref_positioned_reader_mut(),
+        )))
     }
 }
 
@@ -525,17 +531,17 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Key<'this> = WireDecoder<&'this mut R, I, L> where Self: 'this;
-    type Value<'this> = WireDecoder<&'this mut R, I, L> where Self: 'this;
+    type Key<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
+    type Value<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn decode_key(&mut self) -> Result<Self::Key<'_>, Self::Error> {
-        Ok(WireDecoder::new(&mut self.reader))
+        Ok(WireDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 
     #[inline]
     fn decode_value(&mut self) -> Result<Self::Value<'_>, Self::Error> {
-        Ok(WireDecoder::new(&mut self.reader))
+        Ok(WireDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 }
 
@@ -546,12 +552,12 @@ where
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type First<'this> = WireDecoder<&'this mut R, I, L> where Self: 'this;
+    type First<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L> where Self: 'this;
     type Second = Self;
 
     #[inline]
     fn decode_first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(WireDecoder::new(&mut self.reader))
+        Ok(WireDecoder::new(self.reader.deref_positioned_reader_mut()))
     }
 
     #[inline]
@@ -574,7 +580,7 @@ where
 {
     type Error = R::Error;
 
-    type Field<'this> = WireDecoder<&'this mut R, I, L>
+    type Field<'this> = WireDecoder<R::PositionedReaderTarget<'this>, I, L>
     where
         Self: 'this;
 
@@ -590,7 +596,9 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(WireDecoder::new(&mut self.decoder.reader)))
+        Ok(Some(WireDecoder::new(
+            self.decoder.reader.deref_positioned_reader_mut(),
+        )))
     }
 }
 

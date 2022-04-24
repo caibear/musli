@@ -11,6 +11,14 @@ use musli::error::Error;
 
 /// A reader where the current position is exactly known.
 pub trait PositionedReader<'de>: Reader<'de> {
+    /// Target which implements [PositionedReader].
+    type PositionedReaderTarget<'this>: PositionedReader<'de, Error = Self::Error>
+    where
+        Self: 'this;
+
+    /// Deref the positioned reader.
+    fn deref_positioned_reader_mut(&mut self) -> Self::PositionedReaderTarget<'_>;
+
     /// The exact position of a reader.
     fn pos(&self) -> usize;
 }
@@ -22,6 +30,14 @@ pub trait PositionedReader<'de>: Reader<'de> {
 pub trait Reader<'de> {
     /// Error type raised by the current reader.
     type Error: Error;
+
+    /// Helper when dereffing the reader.
+    type ReaderTarget<'this>: Reader<'de, Error = Self::Error>
+    where
+        Self: 'this;
+
+    /// Deref the reader to the given target.
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_>;
 
     /// Skip over the given number of bytes.
     fn skip(&mut self, n: usize) -> Result<(), Self::Error>;
@@ -110,6 +126,12 @@ impl std::error::Error for SliceReaderError {}
 
 impl<'de> Reader<'de> for &'de [u8] {
     type Error = SliceReaderError;
+    type ReaderTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_> {
+        self
+    }
 
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
@@ -165,6 +187,12 @@ impl<'de> SliceReader<'de> {
 
 impl<'de> Reader<'de> for SliceReader<'de> {
     type Error = SliceReaderError;
+    type ReaderTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_> {
+        self
+    }
 
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
@@ -219,6 +247,13 @@ impl<'de, R> PositionedReader<'de> for WithPosition<R>
 where
     R: Reader<'de>,
 {
+    type PositionedReaderTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_positioned_reader_mut(&mut self) -> Self::PositionedReaderTarget<'_> {
+        self
+    }
+
     #[inline]
     fn pos(&self) -> usize {
         self.pos
@@ -230,6 +265,12 @@ where
     R: Reader<'de>,
 {
     type Error = R::Error;
+    type ReaderTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_> {
+        self
+    }
 
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
@@ -279,6 +320,7 @@ impl<'de, R> Limit<R>
 where
     R: Reader<'de>,
 {
+    #[inline]
     fn bounds_check(&mut self, n: usize) -> Result<(), R::Error> {
         match self.remaining.checked_sub(n) {
             Some(remaining) => {
@@ -294,6 +336,13 @@ impl<'de, R> PositionedReader<'de> for Limit<R>
 where
     R: PositionedReader<'de>,
 {
+    type PositionedReaderTarget<'this> = &'this mut Self where Self: 'this;
+
+    #[inline]
+    fn deref_positioned_reader_mut(&mut self) -> Self::PositionedReaderTarget<'_> {
+        self
+    }
+
     #[inline]
     fn pos(&self) -> usize {
         self.reader.pos()
@@ -305,6 +354,12 @@ where
     R: Reader<'de>,
 {
     type Error = R::Error;
+    type ReaderTarget<'this> = &'this mut Limit<R> where Self: 'this;
+
+    #[inline]
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_> {
+        self
+    }
 
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
@@ -343,6 +398,13 @@ impl<'de, R> PositionedReader<'de> for &mut R
 where
     R: ?Sized + PositionedReader<'de>,
 {
+    type PositionedReaderTarget<'this> = R::PositionedReaderTarget<'this> where Self: 'this;
+
+    #[inline]
+    fn deref_positioned_reader_mut(&mut self) -> Self::PositionedReaderTarget<'_> {
+        (**self).deref_positioned_reader_mut()
+    }
+
     #[inline]
     fn pos(&self) -> usize {
         (**self).pos()
@@ -354,6 +416,12 @@ where
     R: ?Sized + Reader<'de>,
 {
     type Error = R::Error;
+    type ReaderTarget<'this> = R::ReaderTarget<'this> where Self: 'this;
+
+    #[inline]
+    fn deref_reader_mut(&mut self) -> Self::ReaderTarget<'_> {
+        (**self).deref_reader_mut()
+    }
 
     #[inline]
     fn skip(&mut self, n: usize) -> Result<(), Self::Error> {
