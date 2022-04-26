@@ -20,6 +20,27 @@ where
     _marker: marker::PhantomData<(I, L)>,
 }
 
+/// A decoder that might be known to be empty.
+#[doc(hidden)]
+pub struct MaybeWireDecoder<D> {
+    empty: bool,
+    decoder: D,
+}
+
+impl<'de, D> MaybeWireDecoder<D>
+where
+    D: Decoder<'de>,
+{
+    #[inline]
+    fn check_empty(&self) -> Result<(), D::Error> {
+        if self.empty {
+            Err(D::Error::message("tried to decode empty value"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
 impl<R, I, L> WireDecoder<R, I, L>
 where
     I: TypedIntegerEncoding,
@@ -148,6 +169,16 @@ where
     decoder: WireDecoder<R, I, L>,
 }
 
+#[doc(hidden)]
+pub struct VariantWireDecoder<R, I, L>
+where
+    I: TypedIntegerEncoding,
+    L: TypedUsizeEncoding,
+{
+    empty: bool,
+    decoder: WireDecoder<R, I, L>,
+}
+
 impl<'de, R, I, L> Decoder<'de> for WireDecoder<R, I, L>
 where
     R: PositionedReader<'de>,
@@ -161,7 +192,7 @@ where
     type Map = RemainingWireDecoder<R, I, L>;
     type Struct = RemainingWireDecoder<R, I, L>;
     type Tuple = RemainingWireDecoder<R, I, L>;
-    type Variant = Self;
+    type Variant = VariantWireDecoder<R, I, L>;
 
     #[inline]
     fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -422,7 +453,7 @@ where
     fn decode_variant(mut self) -> Result<Self::Variant, Self::Error> {
         let tag = Tag::from_byte(self.reader.read_byte()?);
 
-        if tag != Tag::new(Kind::Sequence, 2) {
+        if tag.kind() != Kind::Sequence {
             return Err(Self::Error::message(Expected {
                 expected: Kind::Sequence,
                 actual: tag,
@@ -430,7 +461,224 @@ where
             }));
         }
 
-        Ok(self)
+        let empty = match tag.data() {
+            Some(1) => true,
+            Some(2) => false,
+            _ => {
+                return Err(Self::Error::message(Expected {
+                    expected: Kind::Sequence,
+                    actual: tag,
+                    pos: self.reader.pos().saturating_sub(1),
+                }));
+            }
+        };
+
+        Ok(VariantWireDecoder {
+            empty,
+            decoder: self,
+        })
+    }
+}
+
+impl<'de, D> Decoder<'de> for MaybeWireDecoder<D>
+where
+    D: Decoder<'de>,
+{
+    type Error = D::Error;
+    type Pack = D::Pack;
+    type Some = D::Some;
+    type Sequence = D::Sequence;
+    type Map = D::Map;
+    type Struct = D::Struct;
+    type Tuple = D::Tuple;
+    type Variant = D::Variant;
+
+    #[inline]
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "type supported by the wire decoder")
+    }
+
+    #[inline]
+    fn decode_unit(self) -> Result<(), Self::Error> {
+        if !self.empty {
+            self.decoder.decode_unit()?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn decode_pack(self) -> Result<Self::Pack, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_pack()
+    }
+
+    #[inline]
+    fn decode_array<const N: usize>(self) -> Result<[u8; N], Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_array()
+    }
+
+    #[inline]
+    fn decode_bytes<V>(self, visitor: V) -> Result<V::Ok, V::Error>
+    where
+        V: ValueVisitor<'de, Target = [u8], Error = Self::Error>,
+    {
+        self.check_empty()?;
+        self.decoder.decode_bytes(visitor)
+    }
+
+    #[inline]
+    fn decode_string<V>(self, visitor: V) -> Result<V::Ok, V::Error>
+    where
+        V: ValueVisitor<'de, Target = str, Error = Self::Error>,
+    {
+        self.check_empty()?;
+        self.decoder.decode_string(visitor)
+    }
+
+    #[inline]
+    fn decode_bool(self) -> Result<bool, Self::Error> {
+        self.check_empty()?;
+        self.decode_bool()
+    }
+
+    #[inline]
+    fn decode_char(self) -> Result<char, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_char()
+    }
+
+    #[inline]
+    fn decode_u8(self) -> Result<u8, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_u8()
+    }
+
+    #[inline]
+    fn decode_u16(self) -> Result<u16, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_u16()
+    }
+
+    #[inline]
+    fn decode_u32(self) -> Result<u32, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_u32()
+    }
+
+    #[inline]
+    fn decode_u64(self) -> Result<u64, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_u64()
+    }
+
+    #[inline]
+    fn decode_u128(self) -> Result<u128, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_u128()
+    }
+
+    #[inline]
+    fn decode_i8(self) -> Result<i8, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_i8()
+    }
+
+    #[inline]
+    fn decode_i16(self) -> Result<i16, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_i16()
+    }
+
+    #[inline]
+    fn decode_i32(self) -> Result<i32, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_i32()
+    }
+
+    #[inline]
+    fn decode_i64(self) -> Result<i64, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_i64()
+    }
+
+    #[inline]
+    fn decode_i128(self) -> Result<i128, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_i128()
+    }
+
+    #[inline]
+    fn decode_usize(self) -> Result<usize, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_usize()
+    }
+
+    #[inline]
+    fn decode_isize(self) -> Result<isize, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_isize()
+    }
+
+    #[inline]
+    fn decode_f32(self) -> Result<f32, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_f32()
+    }
+
+    #[inline]
+    fn decode_f64(self) -> Result<f64, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_f64()
+    }
+
+    #[inline]
+    fn decode_option(self) -> Result<Option<Self::Some>, Self::Error> {
+        if self.empty {
+            Ok(None)
+        } else {
+            self.decoder.decode_option()
+        }
+    }
+
+    #[inline]
+    fn decode_sequence(self) -> Result<Self::Sequence, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_sequence()
+    }
+
+    #[inline]
+    fn decode_map(self) -> Result<Self::Map, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_map()
+    }
+
+    #[inline]
+    fn decode_struct(self, len: usize) -> Result<Self::Struct, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_struct(len)
+    }
+
+    #[inline]
+    fn decode_tuple(self, len: usize) -> Result<Self::Tuple, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_tuple(len)
+    }
+
+    #[inline]
+    fn decode_unit_struct(self) -> Result<(), Self::Error> {
+        if !self.empty {
+            self.decode_unit_struct()?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn decode_variant(self) -> Result<Self::Variant, Self::Error> {
+        self.check_empty()?;
+        self.decoder.decode_variant()
     }
 }
 
@@ -488,6 +736,39 @@ where
 
         self.remaining -= 1;
         Ok(Some(WireDecoder::new(&mut self.decoder.reader)))
+    }
+}
+
+impl<'a, 'de, R, I, L> PairDecoder<'de> for VariantWireDecoder<R, I, L>
+where
+    R: PositionedReader<'de>,
+    I: TypedIntegerEncoding,
+    L: TypedUsizeEncoding,
+{
+    type Error = R::Error;
+    type First<'this> = WireDecoder<&'this mut R, I, L> where Self: 'this;
+    type Second = MaybeWireDecoder<WireDecoder<R, I, L>>;
+
+    #[inline]
+    fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
+        Ok(WireDecoder::new(&mut self.decoder.reader))
+    }
+
+    #[inline]
+    fn second(self) -> Result<Self::Second, Self::Error> {
+        Ok(MaybeWireDecoder {
+            empty: self.empty,
+            decoder: self.decoder,
+        })
+    }
+
+    #[inline]
+    fn skip_second(mut self) -> Result<bool, Self::Error> {
+        if !self.empty {
+            self.decoder.skip_any()?;
+        }
+
+        Ok(true)
     }
 }
 

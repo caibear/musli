@@ -53,6 +53,7 @@ macro_rules! rt {
     ($ty:ty, $expr:expr) => {{
         let value: $ty = $expr;
         let out = $crate::to_vec(&value).expect(concat!("wire: ", stringify!($ty), ": failed to encode"));
+        dbg!(&out);
         let decoded: $ty = $crate::from_slice(&out[..]).expect(concat!("wire: ", stringify!($ty), ": failed to decode"));
         // assert!(buf.is_empty(), concat!("wire: ", stringify!($ty), ": decoded buffer should be empty.\nwas: {:?}\noriginal: {:?}\n"), buf, &out[..]);
         assert_eq!(decoded, $expr, concat!("wire: ", stringify!($ty), ": roundtrip does not match"));
