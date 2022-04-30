@@ -69,7 +69,7 @@ where
     #[inline]
     fn decode_unit(mut self) -> Result<(), Self::Error> {
         let pos = self.reader.pos();
-        let count = L::decode_usize(self.reader.pos_reborrow_mut())?;
+        let count = L::decode_usize(self.reader.pos_borrow_mut())?;
 
         if count != 0 {
             return Err(Self::Error::message(ExpectedEmptySequence {
@@ -96,7 +96,7 @@ where
     where
         V: ValueVisitor<'de, Target = [u8], Error = Self::Error>,
     {
-        let len = L::decode_usize(self.reader.pos_reborrow_mut())?;
+        let len = L::decode_usize(self.reader.pos_borrow_mut())?;
         self.reader.read_bytes(len, visitor)
     }
 
@@ -294,7 +294,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
-        Ok(StorageDecoder::new(self.reader.pos_reborrow_mut()))
+        Ok(StorageDecoder::new(self.reader.pos_borrow_mut()))
     }
 }
 
@@ -333,7 +333,7 @@ where
 
         self.remaining -= 1;
         Ok(Some(StorageDecoder::new(
-            self.decoder.reader.pos_reborrow_mut(),
+            self.decoder.reader.pos_borrow_mut(),
         )))
     }
 }
@@ -363,7 +363,7 @@ where
 
         self.remaining -= 1;
         Ok(Some(StorageDecoder::new(
-            self.decoder.reader.pos_reborrow_mut(),
+            self.decoder.reader.pos_borrow_mut(),
         )))
     }
 }
@@ -380,7 +380,7 @@ where
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(StorageDecoder::new(self.reader.pos_reborrow_mut()))
+        Ok(StorageDecoder::new(self.reader.pos_borrow_mut()))
     }
 
     #[inline]

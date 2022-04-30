@@ -17,14 +17,14 @@ pub trait Writer {
     ///
     /// We want to avoid recursive types, which will blow up the compiler. And
     /// the above is a typical example of when that can go wrong. This ensures
-    /// that each call to `reborrow_mut` dereferences the [Reader] at each step to
+    /// that each call to `borrow_mut` dereferences the [Reader] at each step to
     /// avoid constructing a large muted type, like `&mut &mut &mut VecWriter`.
     type Mut<'this>: Writer<Error = Self::Error>
     where
         Self: 'this;
 
     /// Reborrow the current type.
-    fn reborrow_mut(&mut self) -> Self::Mut<'_>;
+    fn borrow_mut(&mut self) -> Self::Mut<'_>;
 
     /// Write bytes to the current writer.
     fn write_bytes(&mut self, bytes: &[u8]) -> Result<(), Self::Error>;
@@ -50,8 +50,8 @@ where
     type Mut<'this> = W::Mut<'this> where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
-        (**self).reborrow_mut()
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
+        (**self).borrow_mut()
     }
 
     #[inline]
@@ -110,7 +110,7 @@ impl Writer for Vec<u8> {
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 

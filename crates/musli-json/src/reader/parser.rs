@@ -14,7 +14,7 @@ pub trait Parser<'de>: private::Sealed {
     ///
     /// We want to avoid recursive types, which will blow up the compiler. And
     /// the above is a typical example of when that can go wrong. This ensures
-    /// that each call to `reborrow_mut` dereferences the [Parser] at each step to
+    /// that each call to `borrow_mut` dereferences the [Parser] at each step to
     /// avoid constructing a large muted type, like `&mut &mut &mut
     /// SliceParser<'de>`.
     type Mut<'this>: Parser<'de>
@@ -22,7 +22,7 @@ pub trait Parser<'de>: private::Sealed {
         Self: 'this;
 
     /// Reborrow the current parser.
-    fn reborrow_mut(&mut self) -> Self::Mut<'_>;
+    fn borrow_mut(&mut self) -> Self::Mut<'_>;
 
     /// Must parse the string from the input buffer and validate that it is
     /// valid UTF-8.
@@ -113,8 +113,8 @@ where
 {
     type Mut<'this> = P::Mut<'this> where Self: 'this;
 
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
-        (**self).reborrow_mut()
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
+        (**self).borrow_mut()
     }
 
     #[inline]

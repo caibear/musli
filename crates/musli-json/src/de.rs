@@ -536,7 +536,7 @@ where
             if token.is_string() {
                 return Ok(Some(JsonObjectPairDecoder::new(
                     self.scratch,
-                    self.parser.reborrow_mut(),
+                    self.parser.borrow_mut(),
                 )));
             }
 
@@ -584,7 +584,7 @@ where
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
         Ok(JsonKeyDecoder::new(
             &mut *self.scratch,
-            self.parser.reborrow_mut(),
+            self.parser.borrow_mut(),
         ))
     }
 
@@ -680,7 +680,7 @@ where
             if token.is_value() {
                 return Ok(Some(JsonDecoder::new(
                     self.scratch,
-                    self.parser.reborrow_mut(),
+                    self.parser.borrow_mut(),
                 )));
             }
 
@@ -719,7 +719,7 @@ where
             let token = self.parser.peek()?;
 
             if token.is_value() {
-                return Ok(JsonDecoder::new(self.scratch, self.parser.reborrow_mut()));
+                return Ok(JsonDecoder::new(self.scratch, self.parser.borrow_mut()));
             }
 
             match token {

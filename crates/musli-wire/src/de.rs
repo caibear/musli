@@ -55,7 +55,7 @@ where
                 let len = if let Some(len) = tag.data() {
                     len as usize
                 } else {
-                    L::decode_usize(self.reader.reborrow_mut())?
+                    L::decode_usize(self.reader.borrow_mut())?
                 };
 
                 self.reader.skip(len)?;
@@ -64,7 +64,7 @@ where
                 let len = if let Some(len) = tag.data() {
                     len as usize
                 } else {
-                    L::decode_usize(self.reader.reborrow_mut())?
+                    L::decode_usize(self.reader.borrow_mut())?
                 };
 
                 for _ in 0..len {
@@ -73,7 +73,7 @@ where
             }
             Kind::Continuation => {
                 if tag.data().is_none() {
-                    let _ = c::decode::<_, u128>(self.reader.reborrow_mut())?;
+                    let _ = c::decode::<_, u128>(self.reader.borrow_mut())?;
                 }
             }
         }
@@ -89,7 +89,7 @@ where
             Kind::Sequence => Ok(if let Some(len) = tag.data() {
                 len as usize
             } else {
-                L::decode_usize(self.reader.reborrow_mut())?
+                L::decode_usize(self.reader.borrow_mut())?
             }),
             _ => Err(R::Error::message(Expected {
                 expected: Kind::Sequence,
@@ -129,7 +129,7 @@ where
         Ok(if let Some(len) = tag.data() {
             len as usize
         } else {
-            L::decode_usize(self.reader.reborrow_mut())?
+            L::decode_usize(self.reader.borrow_mut())?
         })
     }
 }
@@ -216,7 +216,7 @@ where
         let len = if let Some(len) = tag.data() {
             len as usize
         } else {
-            L::decode_usize(self.reader.reborrow_mut())?
+            L::decode_usize(self.reader.borrow_mut())?
         };
 
         self.reader.read_bytes(len, visitor)
@@ -465,7 +465,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
-        Ok(StorageDecoder::new(self.reader.pos_reborrow_mut()))
+        Ok(StorageDecoder::new(self.reader.pos_borrow_mut()))
     }
 }
 
@@ -502,9 +502,7 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(WireDecoder::new(
-            self.decoder.reader.pos_reborrow_mut(),
-        )))
+        Ok(Some(WireDecoder::new(self.decoder.reader.pos_borrow_mut())))
     }
 }
 
@@ -520,7 +518,7 @@ where
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(WireDecoder::new(self.reader.pos_reborrow_mut()))
+        Ok(WireDecoder::new(self.reader.pos_borrow_mut()))
     }
 
     #[inline]
@@ -559,9 +557,7 @@ where
         }
 
         self.remaining -= 1;
-        Ok(Some(WireDecoder::new(
-            self.decoder.reader.pos_reborrow_mut(),
-        )))
+        Ok(Some(WireDecoder::new(self.decoder.reader.pos_borrow_mut())))
     }
 }
 

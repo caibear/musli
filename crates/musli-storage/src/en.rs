@@ -70,7 +70,7 @@ where
 
     #[inline]
     fn encode_bytes(mut self, bytes: &[u8]) -> Result<Self::Ok, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), bytes.len())?;
+        L::encode_usize(self.writer.borrow_mut(), bytes.len())?;
         self.writer.write_bytes(bytes)?;
         Ok(())
     }
@@ -78,7 +78,7 @@ where
     #[inline]
     fn encode_bytes_vectored(mut self, vectors: &[&[u8]]) -> Result<Self::Ok, Self::Error> {
         let len = vectors.into_iter().map(|v| v.len()).sum();
-        L::encode_usize(self.writer.reborrow_mut(), len)?;
+        L::encode_usize(self.writer.borrow_mut(), len)?;
 
         for bytes in vectors {
             self.writer.write_bytes(bytes)?;
@@ -89,14 +89,14 @@ where
 
     #[inline]
     fn encode_string(mut self, string: &str) -> Result<Self::Ok, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), string.len())?;
+        L::encode_usize(self.writer.borrow_mut(), string.len())?;
         self.writer.write_bytes(string.as_bytes())?;
         Ok(())
     }
 
     #[inline]
     fn encode_usize(mut self, value: usize) -> Result<Self::Ok, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), value)
+        L::encode_usize(self.writer.borrow_mut(), value)
     }
 
     #[inline]
@@ -121,22 +121,22 @@ where
 
     #[inline]
     fn encode_u16(mut self, value: u16) -> Result<Self::Ok, Self::Error> {
-        I::encode_unsigned(self.writer.reborrow_mut(), value)
+        I::encode_unsigned(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_u32(mut self, value: u32) -> Result<Self::Ok, Self::Error> {
-        I::encode_unsigned(self.writer.reborrow_mut(), value)
+        I::encode_unsigned(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_u64(mut self, value: u64) -> Result<Self::Ok, Self::Error> {
-        I::encode_unsigned(self.writer.reborrow_mut(), value)
+        I::encode_unsigned(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_u128(mut self, value: u128) -> Result<Self::Ok, Self::Error> {
-        I::encode_unsigned(self.writer.reborrow_mut(), value)
+        I::encode_unsigned(self.writer.borrow_mut(), value)
     }
 
     #[inline]
@@ -146,22 +146,22 @@ where
 
     #[inline]
     fn encode_i16(mut self, value: i16) -> Result<Self::Ok, Self::Error> {
-        I::encode_signed(self.writer.reborrow_mut(), value)
+        I::encode_signed(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_i32(mut self, value: i32) -> Result<Self::Ok, Self::Error> {
-        I::encode_signed(self.writer.reborrow_mut(), value)
+        I::encode_signed(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_i64(mut self, value: i64) -> Result<Self::Ok, Self::Error> {
-        I::encode_signed(self.writer.reborrow_mut(), value)
+        I::encode_signed(self.writer.borrow_mut(), value)
     }
 
     #[inline]
     fn encode_i128(mut self, value: i128) -> Result<Self::Ok, Self::Error> {
-        I::encode_signed(self.writer.reborrow_mut(), value)
+        I::encode_signed(self.writer.borrow_mut(), value)
     }
 
     #[inline]
@@ -188,7 +188,7 @@ where
 
     #[inline]
     fn encode_sequence(mut self, len: usize) -> Result<Self::Sequence, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), len)?;
+        L::encode_usize(self.writer.borrow_mut(), len)?;
         Ok(self)
     }
 
@@ -200,25 +200,25 @@ where
 
     #[inline]
     fn encode_map(mut self, len: usize) -> Result<Self::Map, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), len)?;
+        L::encode_usize(self.writer.borrow_mut(), len)?;
         Ok(self)
     }
 
     #[inline]
     fn encode_struct(mut self, fields: usize) -> Result<Self::Struct, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), fields)?;
+        L::encode_usize(self.writer.borrow_mut(), fields)?;
         Ok(self)
     }
 
     #[inline]
     fn encode_tuple_struct(mut self, len: usize) -> Result<Self::TupleStruct, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), len)?;
+        L::encode_usize(self.writer.borrow_mut(), len)?;
         Ok(self)
     }
 
     #[inline]
     fn encode_unit_struct(mut self) -> Result<Self::Ok, Self::Error> {
-        L::encode_usize(self.writer.reborrow_mut(), 0)?;
+        L::encode_usize(self.writer.borrow_mut(), 0)?;
         Ok(())
     }
 
@@ -240,7 +240,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
-        Ok(StorageEncoder::new(self.writer.reborrow_mut()))
+        Ok(StorageEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
@@ -261,7 +261,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
-        Ok(StorageEncoder::new(self.writer.reborrow_mut()))
+        Ok(StorageEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
@@ -283,12 +283,12 @@ where
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(StorageEncoder::new(self.writer.reborrow_mut()))
+        Ok(StorageEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
     fn second(&mut self) -> Result<Self::Second<'_>, Self::Error> {
-        Ok(StorageEncoder::new(self.writer.reborrow_mut()))
+        Ok(StorageEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]

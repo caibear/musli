@@ -46,7 +46,7 @@ where
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 

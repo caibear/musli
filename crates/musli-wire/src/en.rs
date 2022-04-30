@@ -347,7 +347,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
-        Ok(WireEncoder::new(self.writer.reborrow_mut()))
+        Ok(WireEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
@@ -368,7 +368,7 @@ where
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
-        Ok(WireEncoder::new(self.writer.reborrow_mut()))
+        Ok(WireEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
@@ -390,12 +390,12 @@ where
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
-        Ok(WireEncoder::new(self.writer.reborrow_mut()))
+        Ok(WireEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]
     fn second(&mut self) -> Result<Self::Second<'_>, Self::Error> {
-        Ok(WireEncoder::new(self.writer.reborrow_mut()))
+        Ok(WireEncoder::new(self.writer.borrow_mut()))
     }
 
     #[inline]

@@ -24,7 +24,7 @@ pub trait PosReader<'de>: Reader<'de> {
     ///
     /// We want to avoid recursive types, which will blow up the compiler. And
     /// the above is a typical example of when that can go wrong. This ensures
-    /// that each call to `reborrow_mut` dereferences the [Reader] at each step to
+    /// that each call to `borrow_mut` dereferences the [Reader] at each step to
     /// avoid constructing a large muted type, like `&mut &mut &mut
     /// SliceReader<'de>`.
     type PosMut<'this>: PosReader<'de, Error = Self::Error>
@@ -32,7 +32,7 @@ pub trait PosReader<'de>: Reader<'de> {
         Self: 'this;
 
     /// Reborrow the current reader.
-    fn pos_reborrow_mut(&mut self) -> Self::PosMut<'_>;
+    fn pos_borrow_mut(&mut self) -> Self::PosMut<'_>;
 }
 
 /// Trait governing how a source of bytes is read.
@@ -49,7 +49,7 @@ pub trait Reader<'de> {
     ///
     /// We want to avoid recursive types, which will blow up the compiler. And
     /// the above is a typical example of when that can go wrong. This ensures
-    /// that each call to `reborrow_mut` dereferences the [Reader] at each step to
+    /// that each call to `borrow_mut` dereferences the [Reader] at each step to
     /// avoid constructing a large muted type, like `&mut &mut &mut
     /// SliceReader<'de>`.
     type Mut<'this>: Reader<'de, Error = Self::Error>
@@ -57,7 +57,7 @@ pub trait Reader<'de> {
         Self: 'this;
 
     /// Reborrow the current reader.
-    fn reborrow_mut(&mut self) -> Self::Mut<'_>;
+    fn borrow_mut(&mut self) -> Self::Mut<'_>;
 
     /// Skip over the given number of bytes.
     fn skip(&mut self, n: usize) -> Result<(), Self::Error>;
@@ -201,7 +201,7 @@ impl<'de> Reader<'de> for &'de [u8] {
     type Mut<'this> = &'this mut &'de [u8] where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 
@@ -266,7 +266,7 @@ impl<'de> Reader<'de> for SliceReader<'de> {
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 
@@ -329,7 +329,7 @@ where
     type PosMut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn pos_reborrow_mut(&mut self) -> Self::PosMut<'_> {
+    fn pos_borrow_mut(&mut self) -> Self::PosMut<'_> {
         self
     }
 
@@ -348,7 +348,7 @@ where
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 
@@ -421,7 +421,7 @@ where
     type PosMut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn pos_reborrow_mut(&mut self) -> Self::PosMut<'_> {
+    fn pos_borrow_mut(&mut self) -> Self::PosMut<'_> {
         self
     }
 
@@ -440,7 +440,7 @@ where
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 
@@ -487,8 +487,8 @@ where
     type PosMut<'this> = R::PosMut<'this> where Self: 'this;
 
     #[inline]
-    fn pos_reborrow_mut(&mut self) -> Self::PosMut<'_> {
-        (**self).pos_reborrow_mut()
+    fn pos_borrow_mut(&mut self) -> Self::PosMut<'_> {
+        (**self).pos_borrow_mut()
     }
 
     #[inline]
@@ -506,7 +506,7 @@ where
     type Mut<'this> = &'this mut Self where Self: 'this;
 
     #[inline]
-    fn reborrow_mut(&mut self) -> Self::Mut<'_> {
+    fn borrow_mut(&mut self) -> Self::Mut<'_> {
         self
     }
 
