@@ -26,7 +26,7 @@ use musli_common::writer::Writer;
 ///
 /// [zigzag]: musli_common::int::zigzag
 /// [continuation]: musli_common::int::continuation
-pub const DEFAULT: StorageEncoding<Variable, Variable> = StorageEncoding::new();
+pub const DEFAULT: StorageEncoding<Variable, Variable, DefaultMode> = StorageEncoding::new();
 
 /// Encode the given value to the given [Writer] using the [DEFAULT]
 /// configuration.
@@ -94,15 +94,15 @@ where
 
 /// Setting up encoding with parameters.
 #[derive(Clone, Copy)]
-pub struct StorageEncoding<I, L>
+pub struct StorageEncoding<I, L, Mode = DefaultMode>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(I, L, Mode)>,
 }
 
-impl StorageEncoding<Variable, Variable> {
+impl StorageEncoding<Variable, Variable, DefaultMode> {
     /// Construct a new [StorageEncoding] instance which uses [Variable] integer
     /// encoding.
     ///
@@ -142,34 +142,41 @@ impl StorageEncoding<Variable, Variable> {
     }
 }
 
-impl<I, L> StorageEncoding<I, L>
+impl<I, L, Mode> StorageEncoding<I, L, Mode>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
+    /// Modify the encoding mode.
+    pub const fn with_mode<M>(self) -> StorageEncoding<I, L, M> {
+        StorageEncoding {
+            _marker: marker::PhantomData,
+        }
+    }
+
     /// Configure the encoding to use variable integer encoding.
-    pub const fn with_variable_integers(self) -> StorageEncoding<Variable, L> {
+    pub const fn with_variable_integers(self) -> StorageEncoding<Variable, L, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer encoding.
-    pub const fn with_fixed_integers(self) -> StorageEncoding<Fixed, L> {
+    pub const fn with_fixed_integers(self) -> StorageEncoding<Fixed, L, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer little-endian encoding.
-    pub const fn with_fixed_integers_le(self) -> StorageEncoding<Fixed<LittleEndian>, L> {
+    pub const fn with_fixed_integers_le(self) -> StorageEncoding<Fixed<LittleEndian>, L, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer big-endian encoding.
-    pub const fn with_fixed_integers_be(self) -> StorageEncoding<Fixed<BigEndian>, L> {
+    pub const fn with_fixed_integers_be(self) -> StorageEncoding<Fixed<BigEndian>, L, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
@@ -177,14 +184,14 @@ where
 
     /// Configure the encoding to use fixed integer network-endian encoding
     /// (Default).
-    pub const fn with_fixed_integers_ne(self) -> StorageEncoding<Fixed<NetworkEndian>, L> {
+    pub const fn with_fixed_integers_ne(self) -> StorageEncoding<Fixed<NetworkEndian>, L, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use variable length encoding.
-    pub const fn with_variable_lengths(self) -> StorageEncoding<I, Variable> {
+    pub const fn with_variable_lengths(self) -> StorageEncoding<I, Variable, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
@@ -192,7 +199,7 @@ where
 
     /// Configure the encoding to use fixed length 32-bit encoding when encoding
     /// lengths.
-    pub const fn with_fixed_lengths(self) -> StorageEncoding<I, FixedLength<u32>> {
+    pub const fn with_fixed_lengths(self) -> StorageEncoding<I, FixedLength<u32>, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
@@ -200,7 +207,7 @@ where
 
     /// Configure the encoding to use fixed length 64-bit encoding when encoding
     /// lengths.
-    pub const fn with_fixed_lengths64(self) -> StorageEncoding<I, FixedLength<u64>> {
+    pub const fn with_fixed_lengths64(self) -> StorageEncoding<I, FixedLength<u64>, Mode> {
         StorageEncoding {
             _marker: marker::PhantomData,
         }
@@ -212,9 +219,9 @@ where
     pub fn encode<W, T>(self, writer: W, value: &T) -> Result<(), W::Error>
     where
         W: Writer,
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
-        T::encode(value, StorageEncoder::<_, I, L>::new(writer))
+        T::encode(value, StorageEncoder::<Mode, _, I, L>::new(writer))
     }
 
     /// Encode the given value to the given [Write][io::Write] using the current
@@ -224,10 +231,10 @@ where
     pub fn to_writer<W, T>(self, write: W, value: &T) -> Result<(), io::Error>
     where
         W: io::Write,
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let writer = musli_common::io::wrap(write);
-        T::encode(value, StorageEncoder::<_, I, L>::new(writer))
+        T::encode(value, StorageEncoder::<Mode, _, I, L>::new(writer))
     }
 
     /// Encode the given value to a [Vec] using the current configuration.
@@ -235,10 +242,10 @@ where
     #[inline]
     pub fn to_vec<T>(self, value: &T) -> Result<Vec<u8>, VecWriterError>
     where
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let mut data = Vec::new();
-        T::encode(value, StorageEncoder::<_, I, L>::new(&mut data))?;
+        T::encode(value, StorageEncoder::<Mode, _, I, L>::new(&mut data))?;
         Ok(data)
     }
 
@@ -250,10 +257,10 @@ where
         value: &T,
     ) -> Result<FixedBytes<N>, FixedBytesWriterError>
     where
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let mut bytes = FixedBytes::new();
-        T::encode(value, StorageEncoder::<_, I, L>::new(&mut bytes))?;
+        T::encode(value, StorageEncoder::<Mode, _, I, L>::new(&mut bytes))?;
         Ok(bytes)
     }
 
@@ -263,10 +270,10 @@ where
     pub fn decode<'de, R, T>(self, reader: R) -> Result<T, R::Error>
     where
         R: Reader<'de>,
-        T: Decode<'de, DefaultMode>,
+        T: Decode<'de, Mode>,
     {
         let reader = reader.with_position();
-        T::decode(StorageDecoder::<_, I, L>::new(reader))
+        T::decode(StorageDecoder::<Mode, _, I, L>::new(reader))
     }
 
     /// Decode the given type `T` from the given slice using the current
@@ -274,9 +281,9 @@ where
     #[inline]
     pub fn from_slice<'de, T>(self, bytes: &'de [u8]) -> Result<T, SliceReaderError>
     where
-        T: Decode<'de, DefaultMode>,
+        T: Decode<'de, Mode>,
     {
         let reader = SliceReader::new(bytes).with_position();
-        T::decode(StorageDecoder::<_, I, L>::new(reader))
+        T::decode(StorageDecoder::<Mode, _, I, L>::new(reader))
     }
 }

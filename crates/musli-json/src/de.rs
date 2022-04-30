@@ -16,19 +16,24 @@ use crate::reader::{
 };
 
 /// A JSON decoder for Müsli.
-pub struct JsonDecoder<'a, P> {
+pub struct JsonDecoder<'a, Mode, P> {
     scratch: &'a mut Scratch,
     parser: P,
+    _marker: marker::PhantomData<Mode>,
 }
 
-impl<'de, 'a, P> JsonDecoder<'a, P>
+impl<'de, 'a, Mode, P> JsonDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     /// Construct a new fixed width message encoder.
     #[inline]
     pub(crate) fn new(scratch: &'a mut Scratch, parser: P) -> Self {
-        Self { scratch, parser }
+        Self {
+            scratch,
+            parser,
+            _marker: marker::PhantomData,
+        }
     }
 
     /// Skip over any values.
@@ -38,7 +43,8 @@ where
 
         match actual {
             Token::OpenBrace => {
-                let mut object = JsonObjectDecoder::new(self.scratch, None, self.parser)?;
+                let mut object =
+                    JsonObjectDecoder::<Mode, _>::new(self.scratch, None, self.parser)?;
 
                 while let Some(mut pair) = object.next()? {
                     pair.first()?.skip_any()?;
@@ -46,7 +52,7 @@ where
                 }
             }
             Token::OpenBracket => {
-                let mut seq = JsonSequenceDecoder::new(self.scratch, None, self.parser)?;
+                let mut seq = JsonSequenceDecoder::<Mode, _>::new(self.scratch, None, self.parser)?;
 
                 while let Some(item) = SequenceDecoder::next(&mut seq)? {
                     item.skip_any()?;
@@ -101,18 +107,18 @@ where
     }
 }
 
-impl<'de, 'a, P> Decoder<'de> for JsonDecoder<'a, P>
+impl<'de, 'a, Mode, P> Decoder<'de, Mode> for JsonDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     type Error = ParseError;
     type Pack = Never<Self>;
-    type Sequence = JsonSequenceDecoder<'a, P>;
-    type Tuple = JsonSequenceDecoder<'a, P>;
-    type Map = JsonObjectDecoder<'a, P>;
-    type Some = JsonDecoder<'a, P>;
-    type Struct = JsonObjectDecoder<'a, P>;
-    type TupleStruct = JsonObjectDecoder<'a, P>;
+    type Sequence = JsonSequenceDecoder<'a, Mode, P>;
+    type Tuple = JsonSequenceDecoder<'a, Mode, P>;
+    type Map = JsonObjectDecoder<'a, Mode, P>;
+    type Some = JsonDecoder<'a, Mode, P>;
+    type Struct = JsonObjectDecoder<'a, Mode, P>;
+    type TupleStruct = JsonObjectDecoder<'a, Mode, P>;
     type Variant = Never<Self>;
 
     #[inline]
@@ -276,28 +282,33 @@ where
 }
 
 /// A JSON object key decoder for Müsli.
-pub struct JsonKeyDecoder<'a, P> {
+pub struct JsonKeyDecoder<'a, Mode, P> {
     scratch: &'a mut Scratch,
     parser: P,
+    _marker: marker::PhantomData<Mode>,
 }
 
-impl<'de, 'a, P> JsonKeyDecoder<'a, P>
+impl<'de, 'a, Mode, P> JsonKeyDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     fn skip_any(self) -> Result<(), ParseError> {
-        JsonDecoder::new(self.scratch, self.parser).skip_any()
+        JsonDecoder::<Mode, _>::new(self.scratch, self.parser).skip_any()
     }
 }
 
-impl<'de, 'a, P> JsonKeyDecoder<'a, P>
+impl<'de, 'a, Mode, P> JsonKeyDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     /// Construct a new fixed width message encoder.
     #[inline]
     pub(crate) fn new(scratch: &'a mut Scratch, parser: P) -> Self {
-        Self { scratch, parser }
+        Self {
+            scratch,
+            parser,
+            _marker: marker::PhantomData,
+        }
     }
 
     #[inline]
@@ -384,7 +395,7 @@ where
     }
 }
 
-impl<'de, 'a, P> Decoder<'de> for JsonKeyDecoder<'a, P>
+impl<'de, 'a, Mode, P> Decoder<'de, Mode> for JsonKeyDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
@@ -394,7 +405,7 @@ where
     type Tuple = Never<Self>;
     type Map = Never<Self>;
     type Some = Never<Self>;
-    type Struct = JsonObjectDecoder<'a, P>;
+    type Struct = JsonObjectDecoder<'a, Mode, P>;
     type TupleStruct = Never<Self>;
     type Variant = Never<Self>;
 
@@ -468,18 +479,19 @@ where
     where
         V: ValueVisitor<'de, Target = str, Error = Self::Error>,
     {
-        JsonDecoder::new(self.scratch, self.parser).decode_string(visitor)
+        JsonDecoder::<Mode, _>::new(self.scratch, self.parser).decode_string(visitor)
     }
 }
 
-pub struct JsonObjectDecoder<'a, P> {
+pub struct JsonObjectDecoder<'a, Mode, P> {
     scratch: &'a mut Scratch,
     first: bool,
     len: Option<usize>,
     parser: P,
+    _marker: marker::PhantomData<Mode>,
 }
 
-impl<'de, 'a, P> JsonObjectDecoder<'a, P>
+impl<'de, 'a, Mode, P> JsonObjectDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
@@ -507,17 +519,18 @@ where
             first: true,
             len,
             parser,
+            _marker: marker::PhantomData,
         })
     }
 }
 
-impl<'de, 'a, P> PairsDecoder<'de> for JsonObjectDecoder<'a, P>
+impl<'de, 'a, Mode, P> PairsDecoder<'de, Mode> for JsonObjectDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     type Error = ParseError;
 
-    type Decoder<'this> = JsonObjectPairDecoder<'this, P::Mut<'this>>
+    type Decoder<'this> = JsonObjectPairDecoder<'this, Mode, P::Mut<'this>>
     where
         Self: 'this;
 
@@ -556,29 +569,34 @@ where
     }
 }
 
-pub struct JsonObjectPairDecoder<'a, P> {
+pub struct JsonObjectPairDecoder<'a, Mode, P> {
     scratch: &'a mut Scratch,
     parser: P,
+    _marker: marker::PhantomData<Mode>,
 }
 
-impl<'a, P> JsonObjectPairDecoder<'a, P> {
+impl<'a, Mode, P> JsonObjectPairDecoder<'a, Mode, P> {
     #[inline]
     fn new(scratch: &'a mut Scratch, parser: P) -> Self {
-        Self { scratch, parser }
+        Self {
+            scratch,
+            parser,
+            _marker: marker::PhantomData,
+        }
     }
 }
 
-impl<'de, 'a, P> PairDecoder<'de> for JsonObjectPairDecoder<'a, P>
+impl<'de, 'a, Mode, P> PairDecoder<'de, Mode> for JsonObjectPairDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     type Error = ParseError;
 
-    type First<'this> = JsonKeyDecoder<'this, P::Mut<'this>>
+    type First<'this> = JsonKeyDecoder<'this, Mode, P::Mut<'this>>
     where
         Self: 'this;
 
-    type Second = JsonDecoder<'a, P>;
+    type Second = JsonDecoder<'a, Mode, P>;
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
@@ -613,19 +631,20 @@ where
         }
 
         self.parser.skip(1)?;
-        JsonDecoder::new(self.scratch, self.parser).skip_any()?;
+        JsonDecoder::<Mode, _>::new(self.scratch, self.parser).skip_any()?;
         Ok(true)
     }
 }
 
-pub struct JsonSequenceDecoder<'a, P> {
+pub struct JsonSequenceDecoder<'a, Mode, P> {
     scratch: &'a mut Scratch,
     len: Option<usize>,
     first: bool,
     parser: P,
+    _marker: marker::PhantomData<Mode>,
 }
 
-impl<'de, 'a, P> JsonSequenceDecoder<'a, P>
+impl<'de, 'a, Mode, P> JsonSequenceDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
@@ -653,17 +672,18 @@ where
             len,
             first: true,
             parser,
+            _marker: marker::PhantomData,
         })
     }
 }
 
-impl<'de, 'a, P> SequenceDecoder<'de> for JsonSequenceDecoder<'a, P>
+impl<'de, 'a, Mode, P> SequenceDecoder<'de, Mode> for JsonSequenceDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     type Error = ParseError;
 
-    type Decoder<'this> = JsonDecoder<'this, P::Mut<'this>>
+    type Decoder<'this> = JsonDecoder<'this, Mode, P::Mut<'this>>
     where
         Self: 'this;
 
@@ -702,13 +722,13 @@ where
     }
 }
 
-impl<'de, 'a, P> PackDecoder<'de> for JsonSequenceDecoder<'a, P>
+impl<'de, 'a, Mode, P> PackDecoder<'de, Mode> for JsonSequenceDecoder<'a, Mode, P>
 where
     P: Parser<'de>,
 {
     type Error = ParseError;
 
-    type Decoder<'this> = JsonDecoder<'this, P::Mut<'this>>
+    type Decoder<'this> = JsonDecoder<'this, Mode, P::Mut<'this>>
     where
         Self: 'this;
 

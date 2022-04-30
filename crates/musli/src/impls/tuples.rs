@@ -44,7 +44,7 @@ macro_rules! declare {
             #[inline]
             fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
             where
-                E: Encoder,
+                E: Encoder<Mode>,
             {
                 let mut pack = encoder.encode_tuple(count!($ident0 $($ident)*))?;
                 let ($ident0, $($ident),*) = self;
@@ -58,7 +58,7 @@ macro_rules! declare {
             #[inline]
             fn decode<D>(decoder: D) -> Result<Self, D::Error>
             where
-                D: Decoder<'de>
+                D: Decoder<'de, Mode>
             {
                 let mut unpack = decoder.decode_tuple(count!($ident0 $($ident)*))?;
                 let $ident0 = unpack.next().and_then(<$ty0>::decode)?;
@@ -71,7 +71,7 @@ macro_rules! declare {
             #[inline]
             fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
             where
-                E: Encoder,
+                E: Encoder<Mode>,
             {
                 let Packed(($ident0, $($ident),*)) = self;
                 let mut pack = encoder.encode_pack()?;
@@ -85,7 +85,7 @@ macro_rules! declare {
             #[inline]
             fn decode<D>(decoder: D) -> Result<Self, D::Error>
             where
-                D: Decoder<'de>
+                D: Decoder<'de, Mode>
             {
                 let mut unpack = decoder.decode_pack()?;
                 let $ident0 = unpack.next().and_then(<$ty0>::decode)?;

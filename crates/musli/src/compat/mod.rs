@@ -36,7 +36,7 @@ where
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         let mut seq = encoder.encode_sequence(self.0.len())?;
 
@@ -53,7 +53,7 @@ impl<Mode> Encode<Mode> for Sequence<()> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         encoder.encode_sequence(0)?.end()
     }
@@ -62,7 +62,7 @@ impl<Mode> Encode<Mode> for Sequence<()> {
 impl<'de, Mode> Decode<'de, Mode> for Sequence<()> {
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         Ok(Self(decoder.decode_unit()?))
     }
@@ -84,7 +84,7 @@ impl<const N: usize, Mode> Encode<Mode> for Bytes<[u8; N]> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         encoder.encode_array(self.0)
     }
@@ -94,7 +94,7 @@ impl<'de, Mode, const N: usize> Decode<'de, Mode> for Bytes<[u8; N]> {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         decoder.decode_array().map(Self)
     }

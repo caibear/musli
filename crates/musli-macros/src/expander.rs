@@ -263,7 +263,7 @@ impl<'a> Expander<'a> {
                 #inline
                 fn encode<E>(&self, #assignment: E) -> Result<E::Ok, E::Error>
                 where
-                    E: #encoder_t
+                    E: #encoder_t<#mode_ident>
                 {
                     #body
                 }
@@ -591,7 +591,7 @@ impl<'a> Expander<'a> {
                 #inline
                 fn decode<D>(#assignment: D) -> Result<Self, D::Error>
                 where
-                    D: #decoder_t<#lt>
+                    D: #decoder_t<#lt, #mode_ident>
                 {
                     #body
                 }

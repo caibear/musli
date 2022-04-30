@@ -141,7 +141,7 @@ impl<Mode> JsonEncoding<Mode> {
         W: Writer,
         T: ?Sized + Encode<Mode>,
     {
-        T::encode(value, JsonEncoder::<Mode, _>::new(&mut writer))
+        T::encode(value, JsonEncoder::new(&mut writer))
     }
 
     /// Encode the given value to the given [Write][io::Write] using the current
@@ -154,7 +154,7 @@ impl<Mode> JsonEncoding<Mode> {
         T: ?Sized + Encode<Mode>,
     {
         let mut writer = musli_common::io::wrap(write);
-        T::encode(value, JsonEncoder::<Mode, _>::new(&mut writer))
+        T::encode(value, JsonEncoder::new(&mut writer))
     }
 
     /// Encode the given value to a [Vec] using the current configuration.
@@ -165,7 +165,7 @@ impl<Mode> JsonEncoding<Mode> {
         T: ?Sized + Encode<Mode>,
     {
         let mut data = Vec::new();
-        T::encode(value, JsonEncoder::<Mode, _>::new(&mut data))?;
+        T::encode(value, JsonEncoder::new(&mut data))?;
         Ok(data)
     }
 
@@ -177,7 +177,7 @@ impl<Mode> JsonEncoding<Mode> {
         T: ?Sized + Encode<Mode>,
     {
         let mut data = Vec::new();
-        T::encode(value, JsonEncoder::<Mode, _>::new(&mut data))?;
+        T::encode(value, JsonEncoder::new(&mut data))?;
         // SAFETY: Encoder is guaranteed to produce valid UTF-8.
         Ok(unsafe { String::from_utf8_unchecked(data) })
     }
@@ -193,7 +193,7 @@ impl<Mode> JsonEncoding<Mode> {
         T: ?Sized + Encode<Mode>,
     {
         let mut bytes = FixedBytes::new();
-        T::encode(value, JsonEncoder::<Mode, _>::new(&mut bytes))?;
+        T::encode(value, JsonEncoder::new(&mut bytes))?;
         Ok(bytes)
     }
 

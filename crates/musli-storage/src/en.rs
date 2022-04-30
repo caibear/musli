@@ -6,16 +6,16 @@ use musli::en::{Encoder, PairEncoder, PairsEncoder, SequenceEncoder};
 use musli_common::writer::Writer;
 
 /// A vaery simple encoder suitable for storage encoding.
-pub struct StorageEncoder<W, I, L>
+pub struct StorageEncoder<Mode, W, I, L>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     writer: W,
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(Mode, I, L)>,
 }
 
-impl<W, I, L> StorageEncoder<W, I, L>
+impl<Mode, W, I, L> StorageEncoder<Mode, W, I, L>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
@@ -30,7 +30,7 @@ where
     }
 }
 
-impl<W, I, L> Encoder for StorageEncoder<W, I, L>
+impl<Mode, W, I, L> Encoder<Mode> for StorageEncoder<Mode, W, I, L>
 where
     W: Writer,
     I: IntegerEncoding,
@@ -228,7 +228,7 @@ where
     }
 }
 
-impl<W, I, L> SequenceEncoder for StorageEncoder<W, I, L>
+impl<Mode, W, I, L> SequenceEncoder<Mode> for StorageEncoder<Mode, W, I, L>
 where
     W: Writer,
     I: IntegerEncoding,
@@ -236,7 +236,7 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type Encoder<'this> = StorageEncoder<W::Mut<'this>, I, L> where Self: 'this;
+    type Encoder<'this> = StorageEncoder<Mode, W::Mut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
@@ -249,7 +249,7 @@ where
     }
 }
 
-impl<W, I, L> PairsEncoder for StorageEncoder<W, I, L>
+impl<Mode, W, I, L> PairsEncoder<Mode> for StorageEncoder<Mode, W, I, L>
 where
     W: Writer,
     I: IntegerEncoding,
@@ -257,7 +257,7 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type Encoder<'this> = StorageEncoder<W::Mut<'this>, I, L> where Self: 'this;
+    type Encoder<'this> = StorageEncoder<Mode, W::Mut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
@@ -270,7 +270,7 @@ where
     }
 }
 
-impl<W, I, L> PairEncoder for StorageEncoder<W, I, L>
+impl<Mode, W, I, L> PairEncoder<Mode> for StorageEncoder<Mode, W, I, L>
 where
     W: Writer,
     I: IntegerEncoding,
@@ -278,8 +278,8 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type First<'this> = StorageEncoder<W::Mut<'this>, I, L> where Self: 'this;
-    type Second<'this> = StorageEncoder<W::Mut<'this>, I, L> where Self: 'this;
+    type First<'this> = StorageEncoder<Mode, W::Mut<'this>, I, L> where Self: 'this;
+    type Second<'this> = StorageEncoder<Mode, W::Mut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {

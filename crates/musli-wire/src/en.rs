@@ -9,16 +9,16 @@ use musli_common::writer::Writer;
 use musli_storage::en::StorageEncoder;
 
 /// A very simple encoder.
-pub struct WireEncoder<W, I, L, const P: usize>
+pub struct WireEncoder<Mode, W, I, L, const P: usize>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     writer: W,
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(Mode, I, L)>,
 }
 
-impl<W, I, L, const P: usize> WireEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> WireEncoder<Mode, W, I, L, P>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
@@ -61,7 +61,7 @@ where
     }
 }
 
-impl<W, I, L, const P: usize> Encoder for WireEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> Encoder<Mode> for WireEncoder<Mode, W, I, L, P>
 where
     W: Writer,
     I: TypedIntegerEncoding,
@@ -312,7 +312,7 @@ where
     }
 }
 
-impl<W, I, L, const P: usize> SequenceEncoder for WirePackEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> SequenceEncoder<Mode> for WirePackEncoder<W, I, L, P>
 where
     W: Writer,
     I: TypedIntegerEncoding,
@@ -320,7 +320,7 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type Encoder<'this> = StorageEncoder<&'this mut FixedBytes<P, W::Error>, I, L> where Self: 'this;
+    type Encoder<'this> = StorageEncoder<Mode, &'this mut FixedBytes<P, W::Error>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
@@ -335,7 +335,7 @@ where
     }
 }
 
-impl<W, I, L, const P: usize> SequenceEncoder for WireEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> SequenceEncoder<Mode> for WireEncoder<Mode, W, I, L, P>
 where
     W: Writer,
     I: TypedIntegerEncoding,
@@ -343,7 +343,7 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type Encoder<'this> = WireEncoder<W::Mut<'this>, I, L, P> where Self: 'this;
+    type Encoder<'this> = WireEncoder<Mode, W::Mut<'this>, I, L, P> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
@@ -356,7 +356,7 @@ where
     }
 }
 
-impl<W, I, L, const P: usize> PairsEncoder for WireEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> PairsEncoder<Mode> for WireEncoder<Mode, W, I, L, P>
 where
     W: Writer,
     I: TypedIntegerEncoding,
@@ -364,7 +364,7 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type Encoder<'this> = WireEncoder<W::Mut<'this>, I, L, P> where Self: 'this;
+    type Encoder<'this> = WireEncoder<Mode, W::Mut<'this>, I, L, P> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Encoder<'_>, Self::Error> {
@@ -377,7 +377,7 @@ where
     }
 }
 
-impl<W, I, L, const P: usize> PairEncoder for WireEncoder<W, I, L, P>
+impl<Mode, W, I, L, const P: usize> PairEncoder<Mode> for WireEncoder<Mode, W, I, L, P>
 where
     W: Writer,
     I: TypedIntegerEncoding,
@@ -385,8 +385,8 @@ where
 {
     type Ok = ();
     type Error = W::Error;
-    type First<'this> = WireEncoder<W::Mut<'this>, I, L, P> where Self: 'this;
-    type Second<'this> = WireEncoder<W::Mut<'this>, I, L, P> where Self: 'this;
+    type First<'this> = WireEncoder<Mode, W::Mut<'this>, I, L, P> where Self: 'this;
+    type Second<'this> = WireEncoder<Mode, W::Mut<'this>, I, L, P> where Self: 'this;
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {

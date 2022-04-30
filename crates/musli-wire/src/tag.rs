@@ -145,7 +145,7 @@ impl<'de, Mode> Decode<'de, Mode> for Tag {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         Ok(Self::from_byte(decoder.decode_u8()?))
     }

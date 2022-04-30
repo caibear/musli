@@ -101,15 +101,19 @@ where
 
 /// Setting up encoding with parameters.
 #[derive(Clone, Copy)]
-pub struct WireEncoding<I = Variable, L = Variable, const P: usize = MAX_INLINE_LEN>
-where
+pub struct WireEncoding<
+    I = Variable,
+    L = Variable,
+    const P: usize = MAX_INLINE_LEN,
+    Mode = DefaultMode,
+> where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(I, L, Mode)>,
 }
 
-impl WireEncoding<Variable, Variable, MAX_INLINE_LEN> {
+impl WireEncoding<Variable, Variable, MAX_INLINE_LEN, DefaultMode> {
     /// Construct a new [WireEncoding] instance which uses [Variable] integer
     /// encoding.
     ///
@@ -149,34 +153,41 @@ impl WireEncoding<Variable, Variable, MAX_INLINE_LEN> {
     }
 }
 
-impl<const P: usize, I, L> WireEncoding<I, L, P>
+impl<I, L, const P: usize, Mode> WireEncoding<I, L, P, Mode>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
+    /// Modify the mode.
+    pub const fn with_mode<M>(self) -> WireEncoding<Variable, L, P, M> {
+        WireEncoding {
+            _marker: marker::PhantomData,
+        }
+    }
+
     /// Configure the encoding to use variable integer encoding.
-    pub const fn with_variable_integers(self) -> WireEncoding<Variable, L, P> {
+    pub const fn with_variable_integers(self) -> WireEncoding<Variable, L, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer encoding.
-    pub const fn with_fixed_integers(self) -> WireEncoding<Fixed, L, P> {
+    pub const fn with_fixed_integers(self) -> WireEncoding<Fixed, L, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer little-endian encoding.
-    pub const fn with_fixed_integers_le(self) -> WireEncoding<Fixed<LittleEndian>, L, P> {
+    pub const fn with_fixed_integers_le(self) -> WireEncoding<Fixed<LittleEndian>, L, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use fixed integer big-endian encoding.
-    pub const fn with_fixed_integers_be(self) -> WireEncoding<Fixed<BigEndian>, L, P> {
+    pub const fn with_fixed_integers_be(self) -> WireEncoding<Fixed<BigEndian>, L, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
@@ -184,14 +195,14 @@ where
 
     /// Configure the encoding to use fixed integer network-endian encoding
     /// (Default).
-    pub const fn with_fixed_integers_ne(self) -> WireEncoding<Fixed<NetworkEndian>, L, P> {
+    pub const fn with_fixed_integers_ne(self) -> WireEncoding<Fixed<NetworkEndian>, L, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
     }
 
     /// Configure the encoding to use variable length encoding.
-    pub const fn with_variable_lengths(self) -> WireEncoding<I, Variable, P> {
+    pub const fn with_variable_lengths(self) -> WireEncoding<I, Variable, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
@@ -199,7 +210,7 @@ where
 
     /// Configure the encoding to use fixed length 32-bit encoding when encoding
     /// lengths.
-    pub const fn with_fixed_lengths(self) -> WireEncoding<I, FixedLength<u32>, P> {
+    pub const fn with_fixed_lengths(self) -> WireEncoding<I, FixedLength<u32>, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
@@ -207,7 +218,7 @@ where
 
     /// Configure the encoding to use fixed length 64-bit encoding when encoding
     /// lengths.
-    pub const fn with_fixed_lengths64(self) -> WireEncoding<I, FixedLength<u64>, P> {
+    pub const fn with_fixed_lengths64(self) -> WireEncoding<I, FixedLength<u64>, P, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
@@ -216,7 +227,7 @@ where
     /// Modify the maximum pack sized allowwed in the wire format. This defaults
     /// to [MAX_INLINE_LEN], a value that will fit unencoded in the
     /// [Tag][crate::tag::Tag] of the type.
-    pub const fn with_max_pack<const N: usize>(self) -> WireEncoding<I, L, N> {
+    pub const fn with_max_pack<const N: usize>(self) -> WireEncoding<I, L, N, Mode> {
         WireEncoding {
             _marker: marker::PhantomData,
         }
@@ -228,9 +239,9 @@ where
     pub fn encode<W, T>(self, mut writer: W, value: &T) -> Result<(), W::Error>
     where
         W: Writer,
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
-        T::encode(value, WireEncoder::<_, I, L, P>::new(&mut writer))
+        T::encode(value, WireEncoder::<Mode, _, I, L, P>::new(&mut writer))
     }
 
     /// Encode the given value to the given [Write][io::Write] using the current
@@ -240,10 +251,10 @@ where
     pub fn to_writer<W, T>(self, write: W, value: &T) -> Result<(), io::Error>
     where
         W: io::Write,
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let mut writer = musli_common::io::wrap(write);
-        T::encode(value, WireEncoder::<_, I, L, P>::new(&mut writer))
+        T::encode(value, WireEncoder::<Mode, _, I, L, P>::new(&mut writer))
     }
 
     /// Encode the given value to a [Vec] using the current configuration.
@@ -251,10 +262,10 @@ where
     #[inline]
     pub fn to_vec<T>(self, value: &T) -> Result<Vec<u8>, VecWriterError>
     where
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let mut data = Vec::new();
-        T::encode(value, WireEncoder::<_, I, L, P>::new(&mut data))?;
+        T::encode(value, WireEncoder::<Mode, _, I, L, P>::new(&mut data))?;
         Ok(data)
     }
 
@@ -266,10 +277,10 @@ where
         value: &T,
     ) -> Result<FixedBytes<N>, FixedBytesWriterError>
     where
-        T: ?Sized + Encode<DefaultMode>,
+        T: ?Sized + Encode<Mode>,
     {
         let mut bytes = FixedBytes::new();
-        T::encode(value, WireEncoder::<_, I, L, P>::new(&mut bytes))?;
+        T::encode(value, WireEncoder::<Mode, _, I, L, P>::new(&mut bytes))?;
         Ok(bytes)
     }
 
@@ -279,9 +290,9 @@ where
     pub fn decode<'de, R, T>(self, reader: R) -> Result<T, R::Error>
     where
         R: Reader<'de>,
-        T: Decode<'de, DefaultMode>,
+        T: Decode<'de, Mode>,
     {
-        T::decode(WireDecoder::<_, I, L>::new(reader.with_position()))
+        T::decode(WireDecoder::<Mode, _, I, L>::new(reader.with_position()))
     }
 
     /// Decode the given type `T` from the given slice using the current
@@ -289,9 +300,9 @@ where
     #[inline]
     pub fn from_slice<'de, T>(self, bytes: &'de [u8]) -> Result<T, SliceReaderError>
     where
-        T: Decode<'de, DefaultMode>,
+        T: Decode<'de, Mode>,
     {
-        T::decode(WireDecoder::<_, I, L>::new(
+        T::decode(WireDecoder::<Mode, _, I, L>::new(
             SliceReader::new(bytes).with_position(),
         ))
     }

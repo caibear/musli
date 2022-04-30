@@ -83,7 +83,7 @@ where
     bincode::deserialize(data).unwrap()
 }
 
-const ENCODING: StorageEncoding<Fixed, FixedLength> = StorageEncoding::new()
+const ENCODING: StorageEncoding<Fixed, FixedLength, DefaultMode> = StorageEncoding::new()
     .with_fixed_integers()
     .with_fixed_lengths();
 

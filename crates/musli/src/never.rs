@@ -22,7 +22,7 @@ enum NeverMarker {}
 ///
 /// struct MyDecoder;
 ///
-/// impl Decoder<'_> for MyDecoder {
+/// impl<Mode> Decoder<'_, Mode> for MyDecoder {
 ///     type Error = String;
 ///     type Pack = Never<Self>;
 ///     type Sequence = Never<Self>;
@@ -48,9 +48,9 @@ pub struct Never<T> {
     _marker: marker::PhantomData<T>,
 }
 
-impl<'de, T> Decoder<'de> for Never<T>
+impl<'de, Mode, T> Decoder<'de, Mode> for Never<T>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     type Error = T::Error;
     type Pack = Self;
@@ -68,9 +68,9 @@ where
     }
 }
 
-impl<'de, T> PairDecoder<'de> for Never<T>
+impl<'de, Mode, T> PairDecoder<'de, Mode> for Never<T>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     type Error = T::Error;
 
@@ -96,9 +96,9 @@ where
     }
 }
 
-impl<'de, T> PairsDecoder<'de> for Never<T>
+impl<'de, Mode, T> PairsDecoder<'de, Mode> for Never<T>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     type Error = T::Error;
 
@@ -117,9 +117,9 @@ where
     }
 }
 
-impl<'de, T> SequenceDecoder<'de> for Never<T>
+impl<'de, Mode, T> SequenceDecoder<'de, Mode> for Never<T>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     type Error = T::Error;
 
@@ -138,9 +138,9 @@ where
     }
 }
 
-impl<'de, T> PackDecoder<'de> for Never<T>
+impl<'de, Mode, T> PackDecoder<'de, Mode> for Never<T>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     type Error = T::Error;
 
@@ -154,9 +154,9 @@ where
     }
 }
 
-impl<T> Encoder for Never<T>
+impl<Mode, T> Encoder<Mode> for Never<T>
 where
-    T: Encoder,
+    T: Encoder<Mode>,
 {
     type Ok = T::Ok;
     type Error = T::Error;
@@ -175,9 +175,9 @@ where
     }
 }
 
-impl<T> SequenceEncoder for Never<T>
+impl<Mode, T> SequenceEncoder<Mode> for Never<T>
 where
-    T: Encoder,
+    T: Encoder<Mode>,
 {
     type Ok = T::Ok;
     type Error = T::Error;
@@ -197,9 +197,9 @@ where
     }
 }
 
-impl<T> PairsEncoder for Never<T>
+impl<Mode, T> PairsEncoder<Mode> for Never<T>
 where
-    T: Encoder,
+    T: Encoder<Mode>,
 {
     type Ok = T::Ok;
     type Error = T::Error;
@@ -215,9 +215,9 @@ where
     }
 }
 
-impl<T> PairEncoder for Never<T>
+impl<Mode, T> PairEncoder<Mode> for Never<T>
 where
-    T: Encoder,
+    T: Encoder<Mode>,
 {
     type Ok = T::Ok;
     type Error = T::Error;

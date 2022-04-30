@@ -9,16 +9,16 @@ pub struct Container<'a> {
 mod bytes {
     use musli::{Decoder, Encoder};
 
-    pub(crate) fn encode<E>(this: &[u8], mut encoder: E) -> Result<(), E::Error>
+    pub(crate) fn encode<Mode, E>(this: &[u8], mut encoder: E) -> Result<(), E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         todo!()
     }
 
-    pub(crate) fn decode<'de, D>(mut decoder: D) -> Result<Vec<u8>, D::Error>
+    pub(crate) fn decode<'de, Mode, D>(mut decoder: D) -> Result<Vec<u8>, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         todo!()
     }

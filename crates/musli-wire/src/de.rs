@@ -11,16 +11,16 @@ use musli_common::reader::{Limit, PosReader};
 use musli_storage::de::StorageDecoder;
 
 /// A very simple decoder.
-pub struct WireDecoder<R, I, L>
+pub struct WireDecoder<Mode, R, I, L>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     reader: R,
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(Mode, I, L)>,
 }
 
-impl<R, I, L> WireDecoder<R, I, L>
+impl<Mode, R, I, L> WireDecoder<Mode, R, I, L>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
@@ -35,7 +35,7 @@ where
     }
 }
 
-impl<'de, R, I, L> WireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> WireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
@@ -101,14 +101,16 @@ where
 
     // Standard function for decoding a pair sequence.
     #[inline]
-    fn shared_decode_pair_sequence(mut self) -> Result<RemainingWireDecoder<R, I, L>, R::Error> {
+    fn shared_decode_pair_sequence(
+        mut self,
+    ) -> Result<RemainingWireDecoder<Mode, R, I, L>, R::Error> {
         let len = self.decode_sequence_len()?;
         Ok(RemainingWireDecoder::new(len / 2, self))
     }
 
     // Standard function for decoding a pair sequence.
     #[inline]
-    fn shared_decode_sequence(mut self) -> Result<RemainingWireDecoder<R, I, L>, R::Error> {
+    fn shared_decode_sequence(mut self) -> Result<RemainingWireDecoder<Mode, R, I, L>, R::Error> {
         let len = self.decode_sequence_len()?;
         Ok(RemainingWireDecoder::new(len, self))
     }
@@ -139,29 +141,29 @@ where
 /// This simplifies implementing decoders that do not have any special handling
 /// for length-prefixed types.
 #[doc(hidden)]
-pub struct RemainingWireDecoder<R, I, L>
+pub struct RemainingWireDecoder<Mode, R, I, L>
 where
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     remaining: usize,
-    decoder: WireDecoder<R, I, L>,
+    decoder: WireDecoder<Mode, R, I, L>,
 }
 
-impl<'de, R, I, L> Decoder<'de> for WireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> Decoder<'de, Mode> for WireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Pack = WireDecoder<Limit<R>, I, L>;
+    type Pack = WireDecoder<Mode, Limit<R>, I, L>;
     type Some = Self;
-    type Sequence = RemainingWireDecoder<R, I, L>;
+    type Sequence = RemainingWireDecoder<Mode, R, I, L>;
     type Tuple = Self;
-    type Map = RemainingWireDecoder<R, I, L>;
-    type Struct = RemainingWireDecoder<R, I, L>;
-    type TupleStruct = RemainingWireDecoder<R, I, L>;
+    type Map = RemainingWireDecoder<Mode, R, I, L>;
+    type Struct = RemainingWireDecoder<Mode, R, I, L>;
+    type TupleStruct = RemainingWireDecoder<Mode, R, I, L>;
     type Variant = Self;
 
     #[inline]
@@ -454,14 +456,14 @@ where
     }
 }
 
-impl<'de, R, I, L> PackDecoder<'de> for WireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> PackDecoder<'de, Mode> for WireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = StorageDecoder<R::PosMut<'this>, I, L> where Self: 'this;
+    type Decoder<'this> = StorageDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
@@ -469,26 +471,26 @@ where
     }
 }
 
-impl<'de, R, I, L> RemainingWireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> RemainingWireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     #[inline]
-    fn new(remaining: usize, decoder: WireDecoder<R, I, L>) -> Self {
+    fn new(remaining: usize, decoder: WireDecoder<Mode, R, I, L>) -> Self {
         Self { remaining, decoder }
     }
 }
 
-impl<'de, R, I, L> SequenceDecoder<'de> for RemainingWireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> SequenceDecoder<'de, Mode> for RemainingWireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = WireDecoder<R::PosMut<'this>, I, L> where Self: 'this;
+    type Decoder<'this> = WireDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn size_hint(&self) -> Option<usize> {
@@ -506,15 +508,15 @@ where
     }
 }
 
-impl<'a, 'de, R, I, L> PairDecoder<'de> for WireDecoder<R, I, L>
+impl<'a, 'de, Mode, R, I, L> PairDecoder<'de, Mode> for WireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
     L: TypedUsizeEncoding,
 {
     type Error = R::Error;
-    type First<'this> = WireDecoder<R::PosMut<'this>, I, L> where Self: 'this;
-    type Second = WireDecoder<R, I, L>;
+    type First<'this> = WireDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
+    type Second = WireDecoder<Mode, R, I, L>;
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {
@@ -533,7 +535,7 @@ where
     }
 }
 
-impl<'de, R, I, L> PairsDecoder<'de> for RemainingWireDecoder<R, I, L>
+impl<'de, Mode, R, I, L> PairsDecoder<'de, Mode> for RemainingWireDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: TypedIntegerEncoding,
@@ -541,7 +543,7 @@ where
 {
     type Error = R::Error;
 
-    type Decoder<'this> = WireDecoder<R::PosMut<'this>, I, L>
+    type Decoder<'this> = WireDecoder<Mode, R::PosMut<'this>, I, L>
     where
         Self: 'this;
 

@@ -196,6 +196,7 @@ where
 const STORAGE_ENCODING: musli_storage::StorageEncoding<
     musli_storage::Fixed,
     musli_storage::FixedLength,
+    DefaultMode,
 > = musli_storage::StorageEncoding::new()
     .with_fixed_integers()
     .with_fixed_lengths();

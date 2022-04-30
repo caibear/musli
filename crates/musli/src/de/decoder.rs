@@ -1,9 +1,10 @@
-use crate::no_std::ToOwned;
 use core::borrow::Borrow;
 use core::fmt;
+use core::marker;
 
 use crate::error::Error;
 use crate::expecting::{self, BadVisitorType, Expecting, InvalidType};
+use crate::no_std::ToOwned;
 
 /// A visitor for data where it might be possible to borrow it without copying
 /// from the underlying [Decoder].
@@ -54,12 +55,12 @@ pub trait ValueVisitor<'de>: Sized {
 }
 
 /// A pack that can construct encoders.
-pub trait PackDecoder<'de> {
+pub trait PackDecoder<'de, Mode> {
     /// Error type raised by this unpack.
     type Error: Error;
 
     /// The encoder to use for the pack.
-    type Decoder<'this>: Decoder<'de, Error = Self::Error>
+    type Decoder<'this>: Decoder<'de, Mode, Error = Self::Error>
     where
         Self: 'this;
 
@@ -69,12 +70,12 @@ pub trait PackDecoder<'de> {
 }
 
 /// Trait governing how to decode a sequence.
-pub trait SequenceDecoder<'de> {
+pub trait SequenceDecoder<'de, Mode> {
     /// Error type.
     type Error: Error;
 
     /// The decoder for individual items.
-    type Decoder<'this>: Decoder<'de, Error = Self::Error>
+    type Decoder<'this>: Decoder<'de, Mode, Error = Self::Error>
     where
         Self: 'this;
 
@@ -90,12 +91,12 @@ pub trait SequenceDecoder<'de> {
 ///
 /// Each invocation of [PairsDecoder::next] returns an implementation of
 /// [PairDecoder].
-pub trait PairsDecoder<'de> {
+pub trait PairsDecoder<'de, Mode> {
     /// Error type.
     type Error: Error;
 
     /// The decoder to use for a key.
-    type Decoder<'this>: PairDecoder<'de, Error = Self::Error>
+    type Decoder<'this>: PairDecoder<'de, Mode, Error = Self::Error>
     where
         Self: 'this;
 
@@ -108,17 +109,17 @@ pub trait PairsDecoder<'de> {
 }
 
 /// Trait governing how to decode a field.
-pub trait PairDecoder<'de> {
+pub trait PairDecoder<'de, Mode> {
     /// Error type.
     type Error: Error;
 
     /// The decoder to use for a tuple field index.
-    type First<'this>: Decoder<'de, Error = Self::Error>
+    type First<'this>: Decoder<'de, Mode, Error = Self::Error>
     where
         Self: 'this;
 
     /// The decoder to use for a tuple field value.
-    type Second: Decoder<'de, Error = Self::Error>;
+    type Second: Decoder<'de, Mode, Error = Self::Error>;
 
     /// Return the decoder for the first value in the pair.
     ///
@@ -138,35 +139,35 @@ pub trait PairDecoder<'de> {
 }
 
 /// Trait governing the implementation of a decoder.
-pub trait Decoder<'de>: Sized {
+pub trait Decoder<'de, Mode>: Sized {
     /// Error type raised by the decoder.
     type Error: Error;
     /// Pack decoder implementation.
-    type Pack: PackDecoder<'de, Error = Self::Error>;
+    type Pack: PackDecoder<'de, Mode, Error = Self::Error>;
     /// Sequence decoder implementation.
-    type Sequence: SequenceDecoder<'de, Error = Self::Error>;
+    type Sequence: SequenceDecoder<'de, Mode, Error = Self::Error>;
     /// Tuple decoder implementation.
-    type Tuple: PackDecoder<'de, Error = Self::Error>;
+    type Tuple: PackDecoder<'de, Mode, Error = Self::Error>;
     /// Map decoder implementation.
-    type Map: PairsDecoder<'de, Error = Self::Error>;
+    type Map: PairsDecoder<'de, Mode, Error = Self::Error>;
     /// Decoder for a value that is present.
-    type Some: Decoder<'de, Error = Self::Error>;
+    type Some: Decoder<'de, Mode, Error = Self::Error>;
     /// Decoder for a struct.
     ///
     /// The caller receives a [PairsDecoder] which when advanced with
     /// [PairsDecoder::next] indicates the fields of the structure.
-    type Struct: PairsDecoder<'de, Error = Self::Error>;
+    type Struct: PairsDecoder<'de, Mode, Error = Self::Error>;
     /// Decoder for a tuple struct.
     ///
     /// The caller receives a [PairsDecoder] which when advanced with
     /// [PairsDecoder::next] indicates the elements in the tuple.
-    type TupleStruct: PairsDecoder<'de, Error = Self::Error>;
+    type TupleStruct: PairsDecoder<'de, Mode, Error = Self::Error>;
     /// Decoder for a variant.
     ///
     /// The caller receives a [PairDecoder] which when advanced with
     /// [PairDecoder::first] indicates which variant is being decoded and
     /// [PairDecoder::second] is the content of the variant.
-    type Variant: PairDecoder<'de, Error = Self::Error>;
+    type Variant: PairDecoder<'de, Mode, Error = Self::Error>;
 
     /// Format the human-readable message that should occur if the decoder was
     /// expecting to decode some specific kind of value.
@@ -181,7 +182,7 @@ pub trait Decoder<'de>: Sized {
     ///
     /// struct MyDecoder;
     ///
-    /// impl Decoder<'_> for MyDecoder {
+    /// impl<Mode> Decoder<'_, Mode> for MyDecoder {
     ///     type Error = String;
     ///     type Pack = Never<Self>;
     ///     type Sequence = Never<Self>;
@@ -215,7 +216,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for UnitType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         decoder.decode_unit()?;
     ///         Ok(UnitType)
@@ -226,7 +227,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_unit(self) -> Result<(), Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unit,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -244,7 +245,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_bool()?,
@@ -256,7 +257,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_bool(self) -> Result<bool, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Bool,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -274,7 +275,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_char()?,
@@ -286,7 +287,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_char(self) -> Result<char, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Char,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -304,7 +305,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_u8()?,
@@ -316,7 +317,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_u8(self) -> Result<u8, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unsigned8,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -334,7 +335,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_u16()?,
@@ -346,7 +347,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_u16(self) -> Result<u16, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unsigned16,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -364,7 +365,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_u32()?,
@@ -376,7 +377,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_u32(self) -> Result<u32, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unsigned32,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -394,7 +395,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_u64()?,
@@ -406,7 +407,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_u64(self) -> Result<u64, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unsigned64,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -424,7 +425,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_u128()?,
@@ -436,7 +437,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_u128(self) -> Result<u128, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Unsigned128,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -454,7 +455,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_i8()?,
@@ -466,7 +467,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_i8(self) -> Result<i8, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Signed8,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -484,7 +485,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_i16()?,
@@ -496,7 +497,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_i16(self) -> Result<i16, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Signed16,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -514,7 +515,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_i32()?,
@@ -526,7 +527,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_i32(self) -> Result<i32, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Signed32,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -544,7 +545,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_i64()?,
@@ -556,7 +557,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_i64(self) -> Result<i64, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Signed64,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -574,7 +575,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_i128()?,
@@ -586,7 +587,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_i128(self) -> Result<i128, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Signed128,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -604,7 +605,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_usize()?,
@@ -616,7 +617,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_usize(self) -> Result<usize, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Usize,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -634,7 +635,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_isize()?,
@@ -646,7 +647,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_isize(self) -> Result<isize, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Isize,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -664,7 +665,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_f32()?,
@@ -676,7 +677,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_f32(self) -> Result<f32, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Float32,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -694,7 +695,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_f64()?,
@@ -706,7 +707,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_f64(self) -> Result<f64, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Float64,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -724,7 +725,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         Ok(Self {
     ///             data: decoder.decode_array()?,
@@ -736,7 +737,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_array<const N: usize>(self) -> Result<[u8; N], Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Array,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -759,7 +760,7 @@ pub trait Decoder<'de>: Sized {
     ///     #[inline]
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         return Ok(Self {
     ///             data: decoder.decode_bytes(Visitor(marker::PhantomData))?,
@@ -795,7 +796,7 @@ pub trait Decoder<'de>: Sized {
     {
         Err(Self::Error::message(InvalidType::new(
             expecting::Bytes,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -818,7 +819,7 @@ pub trait Decoder<'de>: Sized {
     ///     #[inline]
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         return Ok(Self {
     ///             data: decoder.decode_string(Visitor(marker::PhantomData))?,
@@ -854,7 +855,7 @@ pub trait Decoder<'de>: Sized {
     {
         Err(Self::Error::message(InvalidType::new(
             expecting::String,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -872,7 +873,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let data = if let Some(decoder) = decoder.decode_option()? {
     ///             Some(<String as Decode<Mode>>::decode(decoder)?)
@@ -891,7 +892,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_option(self) -> Result<Option<Self::Some>, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Option,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -914,7 +915,7 @@ pub trait Decoder<'de>: Sized {
     ///     #[inline]
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut unpack = decoder.decode_pack()?;
     ///         let field = unpack.next().and_then(Decode::<Mode>::decode)?;
@@ -931,7 +932,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_pack(self) -> Result<Self::Pack, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Pack,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -949,7 +950,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MyType {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut seq = decoder.decode_sequence()?;
     ///         let mut data = Vec::new();
@@ -968,7 +969,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_sequence(self) -> Result<Self::Sequence, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Sequence,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -989,7 +990,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for TupleStruct {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut tuple = decoder.decode_tuple(2)?;
     ///         let string = tuple.next().and_then(<String as Decode<Mode>>::decode)?;
@@ -1002,7 +1003,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_tuple(self, _: usize) -> Result<Self::Tuple, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Tuple,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -1022,7 +1023,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for MapStruct {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut map = decoder.decode_map()?;
     ///         let mut data = HashMap::with_capacity(map.size_hint().unwrap_or_default());
@@ -1043,7 +1044,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_map(self) -> Result<Self::Map, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Map,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -1065,7 +1066,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for Struct {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut st = decoder.decode_struct(2)?;
     ///         let mut string = None;
@@ -1099,7 +1100,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_struct(self, _: usize) -> Result<Self::Struct, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Struct,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -1118,7 +1119,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for TupleStruct {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut st = decoder.decode_tuple_struct(2)?;
     ///         let mut string = None;
@@ -1151,7 +1152,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_tuple_struct(self, _: usize) -> Result<Self::TupleStruct, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::TupleStruct,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -1167,7 +1168,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for UnitStruct {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         decoder.decode_unit_struct()?;
     ///         Ok(Self)
@@ -1178,7 +1179,7 @@ pub trait Decoder<'de>: Sized {
     fn decode_unit_struct(self) -> Result<(), Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::UnitStruct,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 
@@ -1198,7 +1199,7 @@ pub trait Decoder<'de>: Sized {
     /// impl<'de, Mode> Decode<'de, Mode> for Enum {
     ///     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     ///     where
-    ///         D: Decoder<'de>,
+    ///         D: Decoder<'de, Mode>,
     ///     {
     ///         let mut variant = decoder.decode_variant()?;
     ///         let tag = variant.first().and_then(<usize as Decode<Mode>>::decode)?;
@@ -1221,17 +1222,24 @@ pub trait Decoder<'de>: Sized {
     fn decode_variant(self) -> Result<Self::Variant, Self::Error> {
         Err(Self::Error::message(InvalidType::new(
             expecting::Variant,
-            &ExpectingWrapper(self),
+            &ExpectingWrapper::new(self),
         )))
     }
 }
 
 #[repr(transparent)]
-struct ExpectingWrapper<T>(T);
+struct ExpectingWrapper<T, Mode>(T, marker::PhantomData<Mode>);
 
-impl<'de, T> Expecting for ExpectingWrapper<T>
+impl<Mode, T> ExpectingWrapper<T, Mode> {
+    #[inline]
+    fn new(value: T) -> Self {
+        Self(value, marker::PhantomData)
+    }
+}
+
+impl<'de, Mode, T> Expecting for ExpectingWrapper<T, Mode>
 where
-    T: Decoder<'de>,
+    T: Decoder<'de, Mode>,
 {
     fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.expecting(f)

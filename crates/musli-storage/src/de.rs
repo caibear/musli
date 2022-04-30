@@ -7,16 +7,16 @@ use musli::error::Error;
 use musli_common::reader::PosReader;
 
 /// A very simple decoder suitable for storage decoding.
-pub struct StorageDecoder<R, I, L>
+pub struct StorageDecoder<Mode, R, I, L>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     reader: R,
-    _marker: marker::PhantomData<(I, L)>,
+    _marker: marker::PhantomData<(Mode, I, L)>,
 }
 
-impl<R, I, L> StorageDecoder<R, I, L>
+impl<Mode, R, I, L> StorageDecoder<Mode, R, I, L>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
@@ -36,16 +36,16 @@ where
 /// This simplifies implementing decoders that do not have any special handling
 /// for length-prefixed types.
 #[doc(hidden)]
-pub struct LimitedStorageDecoder<R, I, L>
+pub struct LimitedStorageDecoder<Mode, R, I, L>
 where
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     remaining: usize,
-    decoder: StorageDecoder<R, I, L>,
+    decoder: StorageDecoder<Mode, R, I, L>,
 }
 
-impl<'de, R, I, L> Decoder<'de> for StorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> Decoder<'de, Mode> for StorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
@@ -54,11 +54,11 @@ where
     type Error = R::Error;
     type Pack = Self;
     type Some = Self;
-    type Sequence = LimitedStorageDecoder<R, I, L>;
+    type Sequence = LimitedStorageDecoder<Mode, R, I, L>;
     type Tuple = Self;
-    type Map = LimitedStorageDecoder<R, I, L>;
-    type Struct = LimitedStorageDecoder<R, I, L>;
-    type TupleStruct = LimitedStorageDecoder<R, I, L>;
+    type Map = LimitedStorageDecoder<Mode, R, I, L>;
+    type Struct = LimitedStorageDecoder<Mode, R, I, L>;
+    type TupleStruct = LimitedStorageDecoder<Mode, R, I, L>;
     type Variant = Self;
 
     #[inline]
@@ -283,14 +283,14 @@ where
     }
 }
 
-impl<'de, R, I, L> PackDecoder<'de> for StorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> PackDecoder<'de, Mode> for StorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = StorageDecoder<R::PosMut<'this>, I, L> where Self: 'this;
+    type Decoder<'this> = StorageDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn next(&mut self) -> Result<Self::Decoder<'_>, Self::Error> {
@@ -298,27 +298,27 @@ where
     }
 }
 
-impl<'de, R, I, L> LimitedStorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> LimitedStorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     #[inline]
-    fn new(mut decoder: StorageDecoder<R, I, L>) -> Result<Self, R::Error> {
+    fn new(mut decoder: StorageDecoder<Mode, R, I, L>) -> Result<Self, R::Error> {
         let remaining = L::decode_usize(&mut decoder.reader)?;
         Ok(Self { remaining, decoder })
     }
 }
 
-impl<'de, R, I, L> SequenceDecoder<'de> for LimitedStorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> SequenceDecoder<'de, Mode> for LimitedStorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type Decoder<'this> = StorageDecoder<R::PosMut<'this>, I, L> where Self: 'this;
+    type Decoder<'this> = StorageDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
 
     #[inline]
     fn size_hint(&self) -> Option<usize> {
@@ -338,7 +338,7 @@ where
     }
 }
 
-impl<'de, R, I, L> PairsDecoder<'de> for LimitedStorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> PairsDecoder<'de, Mode> for LimitedStorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
@@ -346,7 +346,7 @@ where
 {
     type Error = R::Error;
 
-    type Decoder<'this> = StorageDecoder<R::PosMut<'this>, I, L>
+    type Decoder<'this> = StorageDecoder<Mode, R::PosMut<'this>, I, L>
     where
         Self: 'this;
 
@@ -368,15 +368,15 @@ where
     }
 }
 
-impl<'de, R, I, L> PairDecoder<'de> for StorageDecoder<R, I, L>
+impl<'de, Mode, R, I, L> PairDecoder<'de, Mode> for StorageDecoder<Mode, R, I, L>
 where
     R: PosReader<'de>,
     I: IntegerEncoding,
     L: UsizeEncoding,
 {
     type Error = R::Error;
-    type First<'this> = StorageDecoder<R::PosMut<'this>, I, L> where Self: 'this;
-    type Second = StorageDecoder<R, I, L>;
+    type First<'this> = StorageDecoder<Mode, R::PosMut<'this>, I, L> where Self: 'this;
+    type Second = StorageDecoder<Mode, R, I, L>;
 
     #[inline]
     fn first(&mut self) -> Result<Self::First<'_>, Self::Error> {

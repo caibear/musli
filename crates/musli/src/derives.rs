@@ -373,7 +373,7 @@
 //! ```rust,ignore
 //! fn encode<Mode, E>(field: &Field, encoder: E) -> Result<E::Ok, E::Error>
 //! where
-//!    E: Encoder;
+//!    E: Encoder<Mode>;
 //! ```
 //!
 //!   `encode` for decoding the field, which should match the following
@@ -382,7 +382,7 @@
 //! ```rust,ignore
 //! fn decode<'de, Mode, D>(decoder: D) -> Result<Field, D::Error>
 //! where
-//!     D: Decoder<'de>;
+//!     D: Decoder<'de, Mode>;
 //! ```
 //!
 //! ```
@@ -405,14 +405,14 @@
 //!
 //!     pub fn encode<Mode, E>(uuid: &CustomUuid, encoder: E) -> Result<E::Ok, E::Error>
 //!     where
-//!         E: Encoder
+//!         E: Encoder<Mode>
 //!     {
 //!         Encode::<Mode>::encode(&uuid.0, encoder)
 //!     }
 //!
 //!     pub fn decode<'de, Mode, D>(decoder: D) -> Result<CustomUuid, D::Error>
 //!     where
-//!         D: Decoder<'de>
+//!         D: Decoder<'de, Mode>
 //!     {
 //!         Ok(CustomUuid(<u128 as Decode<Mode>>::decode(decoder)?))
 //!     }

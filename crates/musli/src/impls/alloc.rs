@@ -14,7 +14,7 @@ impl<Mode> Encode<Mode> for String {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         Encode::<Mode>::encode(self.as_str(), encoder)
     }
@@ -24,7 +24,7 @@ impl<'de, Mode> Decode<'de, Mode> for String {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         return decoder.decode_string(Visitor(marker::PhantomData));
 
@@ -65,7 +65,7 @@ impl<Mode> Encode<Mode> for Box<str> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         Encode::<Mode>::encode(self.as_ref(), encoder)
     }
@@ -75,7 +75,7 @@ impl<'de, Mode> Decode<'de, Mode> for Box<str> {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         Ok(<String as Decode<Mode>>::decode(decoder)?.into())
     }
@@ -85,7 +85,7 @@ impl<Mode> Encode<Mode> for Cow<'_, str> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         Encode::<Mode>::encode(self.as_ref(), encoder)
     }
@@ -95,7 +95,7 @@ impl<'de, Mode> Decode<'de, Mode> for Cow<'de, str> {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         return decoder.decode_string(Visitor(marker::PhantomData));
 
@@ -147,7 +147,7 @@ macro_rules! sequence {
             #[inline]
             fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
             where
-                E: Encoder,
+                E: Encoder<Mode>,
             {
                 let mut seq = encoder.encode_sequence(self.len())?;
 
@@ -167,7 +167,7 @@ macro_rules! sequence {
             #[inline]
             fn decode<D>(decoder: D) -> Result<Self, D::Error>
             where
-                D: Decoder<'de>,
+                D: Decoder<'de, Mode>,
             {
                 let mut $access = decoder.decode_sequence()?;
                 let mut out = $factory;
@@ -222,7 +222,7 @@ macro_rules! map {
             #[inline]
             fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
             where
-                E: Encoder,
+                E: Encoder<Mode>,
             {
                 let mut map = encoder.encode_map(self.len())?;
 
@@ -245,7 +245,7 @@ macro_rules! map {
             #[inline]
             fn decode<D>(decoder: D) -> Result<Self, D::Error>
             where
-                D: Decoder<'de>,
+                D: Decoder<'de, Mode>,
             {
                 let mut $access = decoder.decode_map()?;
                 let mut out = $with_capacity;
@@ -277,7 +277,7 @@ impl<Mode> Encode<Mode> for CStr {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         encoder.encode_bytes(self.to_bytes_with_nul())
     }
@@ -287,7 +287,7 @@ impl<'de, Mode> Decode<'de, Mode> for &'de CStr {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         let bytes = <&[u8] as Decode<Mode>>::decode(decoder)?;
         CStr::from_bytes_with_nul(bytes).map_err(D::Error::custom)
@@ -298,7 +298,7 @@ impl<Mode> Encode<Mode> for CString {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         encoder.encode_bytes(self.to_bytes_with_nul())
     }
@@ -308,7 +308,7 @@ impl<'de, Mode> Decode<'de, Mode> for CString {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         Ok(<&CStr as Decode<Mode>>::decode(decoder)?.to_owned())
     }

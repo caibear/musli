@@ -7,7 +7,7 @@ pub trait Encode<Mode = DefaultMode> {
     /// Encode the given output.
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder;
+        E: Encoder<Mode>;
 }
 
 impl<T, Mode> Encode<Mode> for &T
@@ -17,7 +17,7 @@ where
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         T::encode(*self, encoder)
     }
@@ -30,7 +30,7 @@ where
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         T::encode(*self, encoder)
     }

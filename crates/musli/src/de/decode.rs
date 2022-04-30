@@ -7,5 +7,5 @@ pub trait Decode<'de, Mode = DefaultMode>: Sized {
     /// Decode the given input.
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>;
+        D: Decoder<'de, Mode>;
 }

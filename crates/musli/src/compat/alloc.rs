@@ -14,7 +14,7 @@ impl<Mode> Encode<Mode> for Bytes<Vec<u8>> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         encoder.encode_bytes(self.0.as_slice())
     }
@@ -24,7 +24,7 @@ impl<'de, Mode> Decode<'de, Mode> for Bytes<Vec<u8>> {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         return decoder
             .decode_bytes(Visitor(marker::PhantomData))
@@ -62,7 +62,7 @@ impl<Mode> Encode<Mode> for Bytes<VecDeque<u8>> {
     #[inline]
     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     where
-        E: Encoder,
+        E: Encoder<Mode>,
     {
         let (first, second) = self.0.as_slices();
         encoder.encode_bytes_vectored(&[first, second])
@@ -73,7 +73,7 @@ impl<'de, Mode> Decode<'de, Mode> for Bytes<VecDeque<u8>> {
     #[inline]
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         <Bytes<Vec<u8>> as Decode<Mode>>::decode(decoder)
             .map(|Bytes(bytes)| Bytes(VecDeque::from(bytes)))

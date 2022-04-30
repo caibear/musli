@@ -30,7 +30,7 @@ where
 {
     fn decode<D>(decoder: D) -> Result<Self, D::Error>
     where
-        D: Decoder<'de>,
+        D: Decoder<'de, Mode>,
     {
         let mut unpack = decoder.decode_pack()?;
         let tag = unpack.next().and_then(<Tag as Decode<Mode>>::decode)?;

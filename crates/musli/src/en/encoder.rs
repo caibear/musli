@@ -1,18 +1,19 @@
 use core::fmt;
+use core::marker;
 
 use crate::en::Encode;
 use crate::error::Error;
 use crate::expecting::{self, Expecting, InvalidType};
 
 /// Trait governing how to encode a sequence.
-pub trait SequenceEncoder {
+pub trait SequenceEncoder<Mode> {
     /// Result type of the encoder.
     type Ok;
     /// The error raised by a sequence encoder.
     type Error: Error;
 
     /// The encoder returned when advancing the sequence encoder.
-    type Encoder<'this>: Encoder<Ok = Self::Ok, Error = Self::Error>
+    type Encoder<'this>: Encoder<Mode, Ok = Self::Ok, Error = Self::Error>
     where
         Self: 'this;
 
@@ -22,7 +23,7 @@ pub trait SequenceEncoder {
 
     /// Push an element into the sequence.
     #[inline]
-    fn push<Mode, T>(&mut self, value: T) -> Result<(), Self::Error>
+    fn push<T>(&mut self, value: T) -> Result<(), Self::Error>
     where
         T: Encode<Mode>,
     {
@@ -36,19 +37,19 @@ pub trait SequenceEncoder {
 }
 
 /// Encoder for a sequence of pairs.
-pub trait PairsEncoder {
+pub trait PairsEncoder<Mode> {
     /// Result type of the encoder.
     type Ok;
     /// The error raised by a map encoder.
     type Error: Error;
     /// Encode the next pair.
-    type Encoder<'this>: PairEncoder<Ok = Self::Ok, Error = Self::Error>
+    type Encoder<'this>: PairEncoder<Mode, Ok = Self::Ok, Error = Self::Error>
     where
         Self: 'this;
 
     /// Insert a pair immediately.
     #[inline]
-    fn insert<Mode, F, S>(&mut self, first: F, second: S) -> Result<(), Self::Error>
+    fn insert<F, S>(&mut self, first: F, second: S) -> Result<(), Self::Error>
     where
         Self: Sized,
         F: Encode<Mode>,
@@ -66,25 +67,25 @@ pub trait PairsEncoder {
 }
 
 /// Trait governing how to encode a sequence of pairs.
-pub trait PairEncoder {
+pub trait PairEncoder<Mode> {
     /// Result type of the encoder.
     type Ok;
     /// The error raised by a map encoder.
     type Error: Error;
 
     /// The encoder returned when advancing the map encoder to encode the key.
-    type First<'this>: Encoder<Ok = Self::Ok, Error = Self::Error>
+    type First<'this>: Encoder<Mode, Ok = Self::Ok, Error = Self::Error>
     where
         Self: 'this;
 
     /// The encoder returned when advancing the map encoder to encode the value.
-    type Second<'this>: Encoder<Ok = Self::Ok, Error = Self::Error>
+    type Second<'this>: Encoder<Mode, Ok = Self::Ok, Error = Self::Error>
     where
         Self: 'this;
 
     /// Insert the pair immediately.
     #[inline]
-    fn insert<Mode, F, S>(mut self, first: F, second: S) -> Result<Self::Ok, Self::Error>
+    fn insert<F, S>(mut self, first: F, second: S) -> Result<Self::Ok, Self::Error>
     where
         Self: Sized,
         F: Encode<Mode>,
@@ -108,7 +109,7 @@ pub trait PairEncoder {
 }
 
 /// Trait governing how the encoder works.
-pub trait Encoder: Sized {
+pub trait Encoder<Mode>: Sized {
     /// The type returned by the encoder. For [Encode] implementations ensures
     /// that they are used correctly, since only functions returned by the
     /// [Encoder] is capable of returning this value.
@@ -116,21 +117,21 @@ pub trait Encoder: Sized {
     /// The error raised by an encoder.
     type Error: Error;
     /// A simple pack that packs a sequence of elements.
-    type Pack: SequenceEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Pack: SequenceEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// Encoder returned when encoding an optional value which is present.
-    type Some: Encoder<Ok = Self::Ok, Error = Self::Error>;
+    type Some: Encoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// The type of a sequence encoder.
-    type Sequence: SequenceEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Sequence: SequenceEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// The type of a tuple encoder.
-    type Tuple: SequenceEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Tuple: SequenceEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// The type of a map encoder.
-    type Map: PairsEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Map: PairsEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// Encoder that can encode a struct.
-    type Struct: PairsEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Struct: PairsEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// Encoder that can encode a tuple struct.
-    type TupleStruct: PairsEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type TupleStruct: PairsEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
     /// Encoder for a struct variant.
-    type Variant: PairEncoder<Ok = Self::Ok, Error = Self::Error>;
+    type Variant: PairEncoder<Mode, Ok = Self::Ok, Error = Self::Error>;
 
     /// An expectation error. Every other implementation defers to this to
     /// report that something unexpected happened.
@@ -148,7 +149,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for EmptyStruct {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_unit()
     ///     }
@@ -176,7 +177,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_bool(self.data)
     ///     }
@@ -204,7 +205,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_char(self.data)
     ///     }
@@ -232,7 +233,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_u8(self.data)
     ///     }
@@ -260,7 +261,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_u16(self.data)
     ///     }
@@ -288,7 +289,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_u32(self.data)
     ///     }
@@ -316,7 +317,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_u64(self.data)
     ///     }
@@ -344,7 +345,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_u128(self.data)
     ///     }
@@ -372,7 +373,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_i8(self.data)
     ///     }
@@ -400,7 +401,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_i16(self.data)
     ///     }
@@ -428,7 +429,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_i32(self.data)
     ///     }
@@ -456,7 +457,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_i64(self.data)
     ///     }
@@ -484,7 +485,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_i128(self.data)
     ///     }
@@ -512,7 +513,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_usize(self.data)
     ///     }
@@ -540,7 +541,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_isize(self.data)
     ///     }
@@ -568,7 +569,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_f32(self.data)
     ///     }
@@ -596,7 +597,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_f64(self.data)
     ///     }
@@ -624,7 +625,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_array(self.data)
     ///     }
@@ -652,7 +653,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_bytes(self.data.as_slice())
     ///     }
@@ -687,7 +688,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let (first, second) = self.data.as_slices();
     ///         encoder.encode_bytes_vectored(&[first, second])
@@ -716,7 +717,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_string(self.data.as_str())
     ///     }
@@ -744,7 +745,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         match &self.data {
     ///             Some(data) => {
@@ -779,7 +780,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         match &self.data {
     ///             Some(data) => {
@@ -820,7 +821,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for PackedStruct {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut pack = encoder.encode_pack()?;
     ///         pack.next()?.encode_u32(self.field)?;
@@ -851,12 +852,12 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for MyType {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut seq = encoder.encode_sequence(self.data.len())?;
     ///
     ///         for element in &self.data {
-    ///             seq.push::<Mode, _>(element)?;
+    ///             seq.push(element)?;
     ///         }
     ///
     ///         seq.end()
@@ -883,7 +884,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for PackedTuple {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut tuple = encoder.encode_tuple(2)?;
     ///         tuple.next()?.encode_u32(self.0)?;
@@ -924,11 +925,11 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for TupleStruct {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut st = encoder.encode_struct(2)?;
-    ///         st.insert::<Mode, _, _>("name", &self.name)?;
-    ///         st.insert::<Mode, _, _>("age", self.age)?;
+    ///         st.insert("name", &self.name)?;
+    ///         st.insert("age", self.age)?;
     ///         st.end()
     ///     }
     /// }
@@ -953,10 +954,10 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for TupleStruct {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut tuple = encoder.encode_tuple_struct(1)?;
-    ///         tuple.insert::<Mode, _, _>(0usize, &self.0)?;
+    ///         tuple.insert(0usize, &self.0)?;
     ///         tuple.end()
     ///     }
     /// }
@@ -981,7 +982,7 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for UnitStruct {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         encoder.encode_unit_struct()
     ///     }
@@ -1014,23 +1015,23 @@ pub trait Encoder: Sized {
     /// impl<Mode> Encode<Mode> for Enum {
     ///     fn encode<E>(&self, encoder: E) -> Result<E::Ok, E::Error>
     ///     where
-    ///         E: Encoder
+    ///         E: Encoder<Mode>
     ///     {
     ///         let mut variant = encoder.encode_variant()?;
     ///
     ///         match self {
     ///             Enum::UnitVariant => {
-    ///                 variant.insert::<Mode, _, _>("variant1", ())
+    ///                 variant.insert("variant1", ())
     ///             }
     ///             Enum::TupleVariant(data) => {
-    ///                 variant.insert::<Mode, _, _>("variant2", data)
+    ///                 variant.insert("variant2", data)
     ///             }
     ///             Enum::Variant { data, age } => {
     ///                 variant.first()?.encode_string("variant3")?;
     ///
     ///                 let mut st = variant.second()?.encode_struct(2)?;
-    ///                 st.insert::<Mode, _, _>("data", data)?;
-    ///                 st.insert::<Mode, _, _>("age", age)?;
+    ///                 st.insert("data", data)?;
+    ///                 st.insert("age", age)?;
     ///                 st.end()?;
     ///
     ///                 variant.end()
@@ -1049,18 +1050,18 @@ pub trait Encoder: Sized {
 }
 
 #[repr(transparent)]
-struct ExpectingWrapper<T>(T);
+struct ExpectingWrapper<Mode, T>(T, marker::PhantomData<Mode>);
 
-impl<T> ExpectingWrapper<T> {
+impl<Mode, T> ExpectingWrapper<Mode, T> {
     #[inline]
     const fn new(value: T) -> Self {
-        Self(value)
+        Self(value, marker::PhantomData)
     }
 }
 
-impl<T> Expecting for ExpectingWrapper<T>
+impl<Mode, T> Expecting for ExpectingWrapper<Mode, T>
 where
-    T: Encoder,
+    T: Encoder<Mode>,
 {
     fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.expecting(f)
