@@ -436,6 +436,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "musli-self"
+version = "0.0.33"
+dependencies = [
+ "musli",
+ "musli-common",
+ "musli-storage",
+]
+
+[[package]]
 name = "musli-storage"
 version = "0.0.33"
 dependencies = [
@@ -453,6 +462,7 @@ dependencies = [
  "dlhn",
  "musli",
  "musli-json",
+ "musli-self",
  "musli-storage",
  "musli-value",
  "musli-wire",
